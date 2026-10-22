@@ -9,7 +9,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 10000;
 const HOST = process.env.HOST || '127.0.0.1'; // loopback by default; opt in to exposing it
 const ROOT = path.resolve(__dirname);
 
