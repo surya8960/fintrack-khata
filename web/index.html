@@ -3159,6 +3159,16 @@
       }
     }
 
+    // Supabase schema stores created_at as BIGINT (Unix milliseconds), not ISO text.
+    function toBigIntTimestamp(value) {
+      if (value === null || value === undefined || value === '') return Date.now();
+      if (typeof value === 'number' && Number.isFinite(value)) return Math.trunc(value);
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && String(value).trim() !== '') return Math.trunc(numeric);
+      const parsed = Date.parse(String(value));
+      return Number.isFinite(parsed) ? parsed : Date.now();
+    }
+
     async function syncWithSupabase(options = {}) {
       const { quiet = false, initial = false } = options;
       if (!supabaseClient || !currentSessionUser) {
@@ -3172,10 +3182,10 @@
       const fail = (table, error) => { throw new Error(`${table}: ${error?.message || 'sync failed'}`); };
       // Convert app records to the columns used by the Supabase schema.
       const mappings = [
-        ['khata_customers', customers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', principal_amount:c.principal_amount||0, monthly_interest_rate:c.monthly_interest_rate||0, total_principal_repaid:c.total_principal_repaid||0, total_accrued_interest:c.total_accrued_interest||0, total_interest_paid:c.total_interest_paid||0, last_calculation_date:c.last_calculation_date||null, notes:c.notes||'', created_at:c.created_at||c.createdAt||new Date().toISOString() })],
+        ['khata_customers', customers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', principal_amount:c.principal_amount||0, monthly_interest_rate:c.monthly_interest_rate||0, total_principal_repaid:c.total_principal_repaid||0, total_accrued_interest:c.total_accrued_interest||0, total_interest_paid:c.total_interest_paid||0, last_calculation_date:c.last_calculation_date||null, notes:c.notes||'', created_at:toBigIntTimestamp(c.created_at ?? c.createdAt) })],
         ['interest_accruals', accruals, a => ({ id:a.id, user_id:uid, customer_id:a.customer_id, start_date:a.start_date, end_date:a.end_date, interest_rate:a.interest_rate, principal_basis:a.principal_basis, completed_months:a.completed_months, partial_days:a.partial_days, days_in_partial_month:a.days_in_partial_month, calculated_interest:a.calculated_interest, calculation_breakdown:a.calculation_breakdown||'' })],
         ['loan_payments', payments, x => ({ id:x.id, user_id:uid, customer_id:x.customer_id, amount:x.amount, payment_date:x.payment_date, payment_type:x.payment_type, payment_mode:x.payment_mode||'', notes:x.notes||'' })],
-        ['udhar_customers', udharCustomers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', notes:c.notes||'', created_at:c.createdAt||c.created_at||new Date().toISOString() })],
+        ['udhar_customers', udharCustomers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', notes:c.notes||'', created_at:toBigIntTimestamp(c.createdAt ?? c.created_at) })],
         ['udhar_entries', udharEntries, e => ({ id:e.id, user_id:uid, customer_id:e.customerId||e.customer_id, amount:e.amount, type:e.type, date:e.date, note:e.note||'', bill_number:e.billNumber||e.bill_number||'', created_at:Number(e.date)||Date.now() })],
         ['accounts', accounts, a => ({ id:a.id, user_id:uid, name:a.name, type:a.type, balance:a.balance||0, account_number:a.accountNumber||a.account_number||'' })],
         ['transactions', transactions, t => ({ id:t.id, user_id:uid, account_id:t.accountId||t.account_id, target_account_id:t.targetAccountId||t.target_account_id||null, title:t.title, amount:t.amount, type:t.type, category:t.category||'', date_timestamp:t.dateTimestamp||t.date_timestamp||Date.now(), notes:t.notes||'' })],
@@ -3199,10 +3209,14 @@
             }
             return [...merged.values()];
           };
-          customers = mergeById(customers, cloud.khata_customers, ({user_id, ...x}) => x);
+          customers = mergeById(customers, cloud.khata_customers, ({user_id, created_at, ...x}) => ({
+            ...x, created_at: created_at == null ? undefined : new Date(Number(created_at)).toISOString()
+          }));
           accruals = mergeById(accruals, cloud.interest_accruals, ({user_id, ...x}) => x);
           payments = mergeById(payments, cloud.loan_payments, ({user_id, ...x}) => x);
-          udharCustomers = mergeById(udharCustomers, cloud.udhar_customers, ({user_id, created_at, ...x}) => ({...x, createdAt: x.createdAt || created_at}));
+          udharCustomers = mergeById(udharCustomers, cloud.udhar_customers, ({user_id, created_at, ...x}) => ({
+            ...x, createdAt: x.createdAt || (created_at == null ? undefined : new Date(Number(created_at)).toISOString())
+          }));
           udharEntries = mergeById(udharEntries, cloud.udhar_entries, ({user_id, customer_id, bill_number, created_at, ...x}) => ({...x, customerId: customer_id ?? x.customerId, billNumber: bill_number ?? x.billNumber}));
           accounts = mergeById(accounts, cloud.accounts, ({user_id, account_number, ...x}) => ({...x, accountNumber: account_number ?? x.accountNumber}));
           transactions = mergeById(transactions, cloud.transactions, ({user_id, account_id, target_account_id, date_timestamp, ...x}) => ({...x, accountId: account_id ?? x.accountId, targetAccountId: target_account_id ?? x.targetAccountId, dateTimestamp: date_timestamp ?? x.dateTimestamp}));
