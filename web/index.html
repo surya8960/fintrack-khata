@@ -3189,17 +3189,27 @@
           const pulls = await Promise.all(mappings.map(([table]) => supabaseClient.from(table).select('*').eq('user_id', uid)));
           pulls.forEach((result, i) => { if (result.error) fail(mappings[i][0], result.error); });
           const cloud = Object.fromEntries(mappings.map(([table], i) => [table, pulls[i].data || []]));
-          // Map cloud rows back to the dashboard's local object shape.
-          customers = cloud.khata_customers.map(({user_id,created_at,...x})=>({...x, created_at}));
-          accruals = cloud.interest_accruals.map(({user_id,...x})=>x);
-          payments = cloud.loan_payments.map(({user_id,...x})=>x);
-          udharCustomers = cloud.udhar_customers.map(({user_id,created_at,...x})=>({...x,createdAt:created_at}));
-          udharEntries = cloud.udhar_entries.map(({user_id,customer_id,bill_number,created_at,...x})=>({...x,customerId:customer_id,billNumber:bill_number}));
-          accounts = cloud.accounts.map(({user_id,account_number,...x})=>({...x,accountNumber:account_number}));
-          transactions = cloud.transactions.map(({user_id,account_id,target_account_id,date_timestamp,...x})=>({...x,accountId:account_id,targetAccountId:target_account_id,dateTimestamp:date_timestamp}));
-          budgets = cloud.budgets.map(({user_id,...x})=>x);
-          goals = cloud.goals.map(({user_id,target_amount,current_amount,target_date,...x})=>({...x,target_amount,current_amount,target_date}));
-          saveData(); renderAllViews();
+          // Convert cloud rows to the app's expected shape, then merge by ID.
+          // Never discard locally cached records just because a cloud table returned empty.
+          const mergeById = (localRows, cloudRows, convert = x => x) => {
+            const merged = new Map((Array.isArray(localRows) ? localRows : []).filter(x => x && x.id != null).map(x => [String(x.id), x]));
+            for (const raw of (cloudRows || [])) {
+              const row = convert(raw);
+              if (row && row.id != null) merged.set(String(row.id), { ...(merged.get(String(row.id)) || {}), ...row });
+            }
+            return [...merged.values()];
+          };
+          customers = mergeById(customers, cloud.khata_customers, ({user_id, ...x}) => x);
+          accruals = mergeById(accruals, cloud.interest_accruals, ({user_id, ...x}) => x);
+          payments = mergeById(payments, cloud.loan_payments, ({user_id, ...x}) => x);
+          udharCustomers = mergeById(udharCustomers, cloud.udhar_customers, ({user_id, created_at, ...x}) => ({...x, createdAt: x.createdAt || created_at}));
+          udharEntries = mergeById(udharEntries, cloud.udhar_entries, ({user_id, customer_id, bill_number, created_at, ...x}) => ({...x, customerId: customer_id ?? x.customerId, billNumber: bill_number ?? x.billNumber}));
+          accounts = mergeById(accounts, cloud.accounts, ({user_id, account_number, ...x}) => ({...x, accountNumber: account_number ?? x.accountNumber}));
+          transactions = mergeById(transactions, cloud.transactions, ({user_id, account_id, target_account_id, date_timestamp, ...x}) => ({...x, accountId: account_id ?? x.accountId, targetAccountId: target_account_id ?? x.targetAccountId, dateTimestamp: date_timestamp ?? x.dateTimestamp}));
+          budgets = mergeById(budgets, cloud.budgets, ({user_id, ...x}) => x);
+          goals = mergeById(goals, cloud.goals, ({user_id, target_amount, current_amount, target_date, ...x}) => ({...x, target_amount: target_amount ?? x.target_amount, current_amount: current_amount ?? x.current_amount, target_date: target_date ?? x.target_date}));
+          saveData();
+          renderAllViews();
           isApplyingCloudData = false;
         }
         for (const [table, rows, mapRow] of mappings) {
@@ -3214,6 +3224,8 @@
       } catch (err) {
         isApplyingCloudData = false;
         console.error('FinTrack auto-sync failed:', err);
+        const status = document.getElementById('syncStatusText');
+        if (status) status.innerText = `Sync issue: ${err.message}`;
         if (!quiet) showToast(`Sync error: ${err.message}. Local data is safe.`, 'error');
       } finally {
         autoSyncInProgress = false;
