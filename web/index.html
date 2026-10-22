@@ -44,7 +44,7 @@
           <span id="syncStatusText">Browser Storage / Cloud Account</span>
         </div>
 
-        <button type="button" onclick="openAuthModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm">
+        <button type="button" id="authAccountButton" onclick="openAuthModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm">
           <i data-lucide="user" class="w-4 h-4"></i>
           <span id="authButtonText">Cloud Account</span>
         </button>
@@ -87,10 +87,7 @@
         <i data-lucide="bar-chart-3" class="w-4 h-4 shrink-0"></i>
         <span>Reports &amp; History</span>
       </button>
-      <button type="button" onclick="switchTab('sync')" id="tab-sync" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
-        <i data-lucide="cloud" class="w-4 h-4 shrink-0"></i>
-        <span>Supabase Sync</span>
-      </button>
+
     </div>
   </div>
 
@@ -1467,6 +1464,8 @@
 
     // Tab Switching
     function switchTab(tabId) {
+      // Database/configuration screen is intentionally not part of the user UI.
+      if (tabId === 'sync') tabId = 'dashboard';
       document.querySelectorAll('.nav-tab').forEach(t => {
         t.classList.remove('bg-emerald-100', 'text-emerald-800', 'font-semibold');
         t.classList.add('text-slate-600', 'font-medium');
@@ -3033,15 +3032,14 @@
     // SUPABASE AUTH & TWO-WAY CLOUD SYNC
     // =========================================================================
     function updateAuthUi(user) {
-      const button = document.getElementById('authButtonText');
+      const authButton = document.getElementById('authAccountButton');
       const status = document.getElementById('syncStatusText');
-      if (user) {
-        if (button) button.innerText = (user.email || 'Account').split('@')[0];
-        if (status) status.innerText = `Signed in: ${user.email || 'Supabase user'}`;
-      } else {
-        if (button) button.innerText = 'Cloud Account';
-        if (status) status.innerText = 'Browser Storage / Cloud Account';
-      }
+      const badge = document.getElementById('syncBadge');
+      // Signed-in users should not see a Login/Signup button. Signed-out users
+      // see only the account entry point; database credentials are never shown.
+      if (authButton) authButton.classList.toggle('hidden', !!user);
+      if (badge) badge.classList.add('hidden');
+      if (status) status.innerText = user ? `Signed in: ${user.email || 'Supabase user'}` : '';
     }
 
     function initSupabaseClient(url, key) {
@@ -3092,6 +3090,7 @@
     }
 
     function openAuthModal() {
+      if (currentSessionUser) return;
       document.getElementById('authModal').classList.remove('hidden');
     }
     function closeAuthModal() {
@@ -3122,9 +3121,7 @@
       }
 
       if (!supabaseClient) {
-        closeAuthModal();
-        switchTab('sync');
-        showToast('Configure your Supabase Project URL and Anon Key in the Supabase Sync tab first.', 'info');
+        showToast('Supabase configuration load nahi hui. config.js mein Project URL aur public key check karein.', 'error');
         return;
       }
 
