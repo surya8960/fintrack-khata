@@ -1547,9 +1547,9 @@
 
     function renderUdharKhata() {
       const agg = getAggregateUdharStats();
-      document.getElementById('statUdharGave').innerText = '₹' + agg.totalGave.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statUdharGot').innerText = '₹' + agg.totalGot.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statUdharPending').innerText = '₹' + agg.netPending.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statUdharGave').innerText = '₹' + (Number(agg.totalGave) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statUdharGot').innerText = '₹' + (Number(agg.totalGot) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statUdharPending').innerText = '₹' + (Number(agg.netPending) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
       document.getElementById('udharCustomerCountBadge').innerText = `${udharCustomers.length} Grahak`;
 
       const q = (document.getElementById('udharSearchInput')?.value || '').toLowerCase().trim();
@@ -1582,7 +1582,7 @@
         const st = getUdharStatsForCustomer(c.id);
         let badgeHtml = '';
         if (st.balance > 0) {
-          badgeHtml = `<span class="px-2.5 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-lg">Lene Baki: ₹${st.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+          badgeHtml = `<span class="px-2.5 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-lg">Lene Baki: ₹${(Number(st.balance) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
         } else if (st.balance < 0) {
           badgeHtml = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg">Dene Baki: ₹${Math.abs(st.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
         } else {
@@ -1594,8 +1594,8 @@
         tr.innerHTML = `
           <td class="py-3.5 px-4 font-bold text-slate-900">${esc(c.name)}</td>
           <td class="py-3.5 px-4 text-slate-500 text-xs">${esc(c.phone || 'No phone')}${c.address ? ' • ' + esc(c.address) : ''}</td>
-          <td class="py-3.5 px-4 text-rose-600 font-bold">₹${st.gave.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-          <td class="py-3.5 px-4 text-emerald-600 font-bold">₹${st.got.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3.5 px-4 text-rose-600 font-bold">₹${(Number(st.gave) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3.5 px-4 text-emerald-600 font-bold">₹${(Number(st.got) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
           <td class="py-3.5 px-4">${badgeHtml}</td>
           <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
             <button type="button" onclick="openUdharCustomerDetail('${c.id}')" class="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold rounded-lg">Khata Kholein</button>
@@ -1670,7 +1670,7 @@
         label.className = 'text-xs font-bold uppercase tracking-wider text-rose-700';
         label.innerText = 'Aapko Lena Hai (You Will Get)';
         val.className = 'text-3xl font-extrabold text-rose-700';
-        val.innerText = `₹${st.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        val.innerText = `₹${(Number(st.balance) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
       } else if (st.balance < 0) {
         card.className = 'rounded-2xl p-5 border border-emerald-200 bg-emerald-50/70 text-center space-y-2';
         label.className = 'text-xs font-bold uppercase tracking-wider text-emerald-700';
@@ -1685,8 +1685,8 @@
         val.innerText = '₹0.00';
       }
 
-      document.getElementById('udharDetailTotalGave').innerText = `₹${st.gave.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-      document.getElementById('udharDetailTotalGot').innerText = `₹${st.got.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('udharDetailTotalGave').innerText = `₹${(Number(st.gave) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('udharDetailTotalGot').innerText = `₹${(Number(st.got) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
       document.getElementById('udharDetailEntriesCount').innerText = String(st.count);
 
       setUdharEntryType('GAVE');
@@ -1741,7 +1741,7 @@
       renderUdharKhata();
       renderDashboard();
       showToast(
-        `${activeUdharEntryType === 'GAVE' ? 'Udhar Diya' : 'Payment Mila'} ₹${amount.toLocaleString('en-IN')} recorded!`
+        `${activeUdharEntryType === 'GAVE' ? 'Udhar Diya' : 'Payment Mila'} ₹${(Number(amount) || 0).toLocaleString('en-IN')} recorded!`
       );
     }
 
@@ -1789,7 +1789,7 @@
       if (!entry) return;
       openConfirmModal({
         title: 'Entry Delete Karein?',
-        message: `Kya aap ₹${entry.amount.toLocaleString('en-IN')} ki ye entry delete karna chahte hain?`,
+        message: `Kya aap ₹${(Number(entry.amount) || 0).toLocaleString('en-IN')} ki ye entry delete karna chahte hain?`,
         confirmText: 'Haan, Delete',
         danger: true,
         onConfirm: () => {
@@ -1830,7 +1830,7 @@
       if (!c) return;
       const st = getUdharStatsForCustomer(customerId);
       const msg = st.balance > 0
-        ? `Namaste ${c.name} ji, aapka Udhar Khata me baki hisab ₹${st.balance.toLocaleString('en-IN')} hai. Kripya samay par bhugtan karein. Dhanyawad - FinTrack Khata`
+        ? `Namaste ${c.name} ji, aapka Udhar Khata me baki hisab ₹${(Number(st.balance) || 0).toLocaleString('en-IN')} hai. Kripya samay par bhugtan karein. Dhanyawad - FinTrack Khata`
         : `Namaste ${c.name} ji, aapka Udhar Khata hisab barabar (₹0 baki) hai. Dhanyawad - FinTrack Khata`;
       copyTextWithFallback(msg);
       showToast(`Reminder copied: "${msg}"`, 'success');
@@ -1881,16 +1881,16 @@
       const totalLiquidBal = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
       const totalNetWorth = totalLiquidBal + remainingPrinc + outstandingInt + udharAgg.netPending;
 
-      document.getElementById('statWebNetWorth').innerText = '₹' + totalNetWorth.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statDashUdharPending').innerText = '₹' + udharAgg.netPending.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statWebNetWorth').innerText = '₹' + (Number(totalNetWorth) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statDashUdharPending').innerText = '₹' + (Number(udharAgg.netPending) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
       document.getElementById('statDashUdharCount').innerText = `${udharCustomers.length} Grahak active`;
 
-      document.getElementById('statRemainingPrincipal').innerText = '₹' + remainingPrinc.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statTotalPrincipal').innerText = 'Lent: ₹' + totalPrinc.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statOutstandingInterest').innerText = '₹' + outstandingInt.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statTotalAccrued').innerText = 'Accrued: ₹' + totalAccrued.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statInterestPaid').innerText = '₹' + totalIntPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('statPrincipalRepaid').innerText = '₹' + totalPrincRepaid.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statRemainingPrincipal').innerText = '₹' + (Number(remainingPrinc) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statTotalPrincipal').innerText = 'Lent: ₹' + (Number(totalPrinc) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statOutstandingInterest').innerText = '₹' + (Number(outstandingInt) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statTotalAccrued').innerText = 'Accrued: ₹' + (Number(totalAccrued) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statInterestPaid').innerText = '₹' + (Number(totalIntPaid) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statPrincipalRepaid').innerText = '₹' + (Number(totalPrincRepaid) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
       const tbody = document.getElementById('dashboardCustomerTable');
       tbody.innerHTML = '';
@@ -1904,11 +1904,11 @@
         tr.className = 'hover:bg-slate-50/80 transition';
         tr.innerHTML = `
           <td class="py-3 px-4 font-bold text-slate-900">${esc(c.name)}</td>
-          <td class="py-3 px-4">₹${c.principal_amount.toLocaleString('en-IN')}</td>
+          <td class="py-3 px-4">₹${(Number(c.principal_amount) || 0).toLocaleString('en-IN')}</td>
           <td class="py-3 px-4 font-semibold text-emerald-700">${c.monthly_interest_rate}%/mo</td>
-          <td class="py-3 px-4 font-semibold text-slate-800">₹${remP.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-          <td class="py-3 px-4 font-bold text-indigo-600">₹${outI.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-          <td class="py-3 px-4 font-bold text-emerald-700">₹${totalDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3 px-4 font-semibold text-slate-800">₹${(Number(remP) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3 px-4 font-bold text-indigo-600">₹${(Number(outI) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3 px-4 font-bold text-emerald-700">₹${(Number(totalDue) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
           <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
             <button type="button" onclick="openCustomerDetail('${c.id}')" class="px-3 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold rounded-lg text-xs">Ledger / Pay</button>
             <button type="button" onclick="startCalcForCustomer('${c.id}')" class="px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold rounded-lg text-xs">Calc</button>
@@ -1954,15 +1954,15 @@
           <div class="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl text-center">
             <div>
               <span class="text-[10px] text-slate-400 uppercase font-semibold">Principal</span>
-              <div class="text-xs font-bold text-slate-800">₹${remP.toLocaleString('en-IN')}</div>
+              <div class="text-xs font-bold text-slate-800">₹${(Number(remP) || 0).toLocaleString('en-IN')}</div>
             </div>
             <div>
               <span class="text-[10px] text-slate-400 uppercase font-semibold">Interest</span>
-              <div class="text-xs font-bold text-indigo-600">₹${outI.toLocaleString('en-IN')}</div>
+              <div class="text-xs font-bold text-indigo-600">₹${(Number(outI) || 0).toLocaleString('en-IN')}</div>
             </div>
             <div>
               <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Due</span>
-              <div class="text-xs font-bold text-emerald-700">₹${totalDue.toLocaleString('en-IN')}</div>
+              <div class="text-xs font-bold text-emerald-700">₹${(Number(totalDue) || 0).toLocaleString('en-IN')}</div>
             </div>
           </div>
 
@@ -2023,12 +2023,12 @@
 
       document.getElementById('detailCustomerName').innerText = c.name;
       document.getElementById('detailCustomerSubtitle').innerText = `${c.phone || 'No phone'} • Started: ${c.loan_start_date}`;
-      document.getElementById('detailPrincipalOriginal').innerText = `Orig: ₹${c.principal_amount.toLocaleString('en-IN')}`;
-      document.getElementById('detailPrincipalRemaining').innerText = `₹${remP.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('detailPrincipalOriginal').innerText = `Orig: ₹${(Number(c.principal_amount) || 0).toLocaleString('en-IN')}`;
+      document.getElementById('detailPrincipalRemaining').innerText = `₹${(Number(remP) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
       document.getElementById('detailPrincipalRepaid').innerText = `₹${(c.total_principal_repaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
       document.getElementById('detailInterestRate').innerText = `${c.monthly_interest_rate}% / mo`;
-      document.getElementById('detailInterestOutstanding').innerText = `₹${outI.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('detailInterestOutstanding').innerText = `₹${(Number(outI) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
       document.getElementById('detailInterestAccrued').innerText = `₹${(c.total_accrued_interest || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
       document.getElementById('detailInterestPaid').innerText = `₹${(c.total_interest_paid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
@@ -2234,7 +2234,7 @@
         const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.innerText = `${c.name} (Rem. Principal: ₹${remP.toLocaleString('en-IN')} @ ${c.monthly_interest_rate}%/mo)`;
+        opt.innerText = `${c.name} (Rem. Principal: ₹${(Number(remP) || 0).toLocaleString('en-IN')} @ ${c.monthly_interest_rate}%/mo)`;
         select.appendChild(opt);
       });
       if (activeCustomerId && customers.some(c => c.id === activeCustomerId)) {
@@ -2263,8 +2263,8 @@
       if (!c) return;
 
       const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
-      document.getElementById('calcPrincipalDisplay').innerText = `₹${remP.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-      document.getElementById('calcOriginalPrincipalNote').innerText = `Original Loan: ₹${c.principal_amount.toLocaleString('en-IN')} • Repaid: ₹${(c.total_principal_repaid || 0).toLocaleString('en-IN')}`;
+      document.getElementById('calcPrincipalDisplay').innerText = `₹${(Number(remP) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('calcOriginalPrincipalNote').innerText = `Original Loan: ₹${(Number(c.principal_amount) || 0).toLocaleString('en-IN')} • Repaid: ₹${(c.total_principal_repaid || 0).toLocaleString('en-IN')}`;
       document.getElementById('calcCustomerRateDisplay').innerText = `${c.monthly_interest_rate}% / month`;
       document.getElementById('calcMonthlyRate').value = c.monthly_interest_rate;
 
@@ -2343,11 +2343,11 @@
       const partialInterest = partialDays > 0 ? (monthlyInterest * (partialDays / daysInPartialMonth)) : 0.0;
       const totalAccrued = roundMoney(fullMonthsInterest + partialInterest);
 
-      document.getElementById('previewPrincipalBasis').innerText = principalBasis.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('previewTotalInterest').innerText = `₹${totalAccrued.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('previewPrincipalBasis').innerText = (Number(principalBasis) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('previewTotalInterest').innerText = `₹${(Number(totalAccrued) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
       document.getElementById('previewBreakdownText').innerHTML = `
-        <div class="flex justify-between"><span>Remaining Principal basis:</span><strong class="text-slate-900">₹${principalBasis.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+        <div class="flex justify-between"><span>Remaining Principal basis:</span><strong class="text-slate-900">₹${(Number(principalBasis) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
         <div class="flex justify-between"><span>Monthly rate:</span><strong>${rate.toFixed(2)}% (₹${monthlyInterest.toFixed(2)} / mo)</strong></div>
         <div class="flex justify-between"><span>Completed monthly periods:</span><strong>${completedMonths} month(s) = ₹${fullMonthsInterest.toFixed(2)}</strong></div>
         <div class="flex justify-between"><span>Partial period:</span><strong>${partialDays > 0 ? `${partialDays} / ${daysInPartialMonth} days = ₹${partialInterest.toFixed(2)}` : 'None (exact full period)'}</strong></div>
@@ -2376,7 +2376,7 @@
 
       openConfirmModal({
         title: 'Confirm Interest Accrual',
-        message: `Record ₹${calc.totalAccrued.toFixed(2)} simple interest for ${c.name} (${calc.sStr} to ${calc.eStr})?\n\nPrincipal basis remains fixed at ₹${calc.principalBasis.toLocaleString('en-IN')}.`,
+        message: `Record ₹${calc.totalAccrued.toFixed(2)} simple interest for ${c.name} (${calc.sStr} to ${calc.eStr})?\n\nPrincipal basis remains fixed at ₹${(Number(calc.principalBasis) || 0).toLocaleString('en-IN')}.`,
         confirmText: 'Record Interest',
         onConfirm: () => {
           const newAccrual = {
@@ -2416,7 +2416,7 @@
 
       const totalBal = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
       if (totalBalanceEl) {
-        totalBalanceEl.innerText = '₹' + totalBal.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        totalBalanceEl.innerText = '₹' + (Number(totalBal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
       }
 
       if (accounts.length === 0) {
@@ -2659,7 +2659,7 @@
       renderTransactions();
       renderAccounts();
       renderDashboard();
-      showToast(`Recorded ${modalTxType.toLowerCase()} of ₹${amount.toLocaleString('en-IN')}!`);
+      showToast(`Recorded ${modalTxType.toLowerCase()} of ₹${(Number(amount) || 0).toLocaleString('en-IN')}!`);
     }
 
     function deleteTransaction(id) {
@@ -2667,7 +2667,7 @@
       if (!tx) return;
       openConfirmModal({
         title: 'Delete Transaction?',
-        message: `Delete "${tx.title}" (₹${tx.amount.toLocaleString('en-IN')}) and revert account balance?`,
+        message: `Delete "${tx.title}" (₹${(Number(tx.amount) || 0).toLocaleString('en-IN')}) and revert account balance?`,
         confirmText: 'Delete',
         danger: true,
         onConfirm: () => {
@@ -2750,7 +2750,7 @@
                 <span class="font-bold text-sm text-slate-900">${esc(b.category)}</span>
                 <div class="flex items-center space-x-2">
                   <span class="text-xs ${isOver ? 'text-red-600 font-bold' : 'text-slate-500'}">
-                    ₹${spent.toLocaleString('en-IN')} / ₹${b.monthlyLimit.toLocaleString('en-IN')} (${pct}%)
+                    ₹${(Number(spent) || 0).toLocaleString('en-IN')} / ₹${(Number(b.monthlyLimit) || 0).toLocaleString('en-IN')} (${pct}%)
                   </span>
                   <button type="button" onclick="deleteBudget('${b.id}')" class="text-slate-300 hover:text-red-600">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -2785,7 +2785,7 @@
                 <div class="bg-indigo-600 h-full rounded-full transition-all" style="width: ${pct}%"></div>
               </div>
               <div class="flex items-center justify-between pt-1">
-                <span class="text-xs font-bold text-slate-700">₹${(g.currentAmount || 0).toLocaleString('en-IN')} of ₹${g.targetAmount.toLocaleString('en-IN')} (${pct}%)</span>
+                <span class="text-xs font-bold text-slate-700">₹${(g.currentAmount || 0).toLocaleString('en-IN')} of ₹${(Number(g.targetAmount) || 0).toLocaleString('en-IN')} (${pct}%)</span>
                 <button type="button" onclick="openContributeModal('${g.id}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition">
                   + Contribute
                 </button>
@@ -2864,7 +2864,7 @@
         saveData();
         closeContributeModal();
         renderBudgetsAndGoals();
-        showToast(`Deposited ₹${amt.toLocaleString('en-IN')} towards ${g.name}!`);
+        showToast(`Deposited ₹${(Number(amt) || 0).toLocaleString('en-IN')} towards ${g.name}!`);
       }
     }
 
@@ -2946,17 +2946,17 @@
       const exp = transactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + Number(t.amount), 0);
       const net = inc - exp;
 
-      document.getElementById('reportTotalIncome').innerText = '₹' + inc.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('reportTotalExpense').innerText = '₹' + exp.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportTotalIncome').innerText = '₹' + (Number(inc) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportTotalExpense').innerText = '₹' + (Number(exp) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
       const netEl = document.getElementById('reportNetCashflow');
-      netEl.innerText = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      netEl.innerText = '₹' + (Number(net) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
       netEl.className = 'text-2xl font-bold mt-1 ' + (net >= 0 ? 'text-emerald-600' : 'text-red-600');
 
       // Udhar Audit
       const uAgg = getAggregateUdharStats();
-      document.getElementById('reportUdharGave').innerText = '₹' + uAgg.totalGave.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('reportUdharGot').innerText = '₹' + uAgg.totalGot.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('reportUdharPending').innerText = '₹' + uAgg.netPending.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportUdharGave').innerText = '₹' + (Number(uAgg.totalGave) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportUdharGot').innerText = '₹' + (Number(uAgg.totalGot) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportUdharPending').innerText = '₹' + (Number(uAgg.netPending) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
       const recPct = uAgg.totalGave > 0 ? Math.min(100, Math.round((uAgg.totalGot / uAgg.totalGave) * 100)) : 100;
       document.getElementById('reportUdharRecoveryBadge').innerText = `Recovery Rate: ${recPct}%`;
       document.getElementById('reportUdharRecoveryBar').style.width = `${recPct}%`;
@@ -2969,9 +2969,9 @@
       });
       const repCollected = payments.reduce((s, p) => s + Number(p.amount), 0);
 
-      document.getElementById('reportLentPrincipal').innerText = '₹' + lentP.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('reportAccruedInterest').innerText = '₹' + outI.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-      document.getElementById('reportRepayments').innerText = '₹' + repCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportLentPrincipal').innerText = '₹' + (Number(lentP) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportAccruedInterest').innerText = '₹' + (Number(outI) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportRepayments').innerText = '₹' + (Number(repCollected) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
       document.getElementById('reportBorrowersCount').innerText = String(customers.length);
 
       // Expense Breakdown
@@ -2992,7 +2992,7 @@
               <div class="space-y-1">
                 <div class="flex justify-between text-xs font-semibold">
                   <span>${esc(cat)}</span>
-                  <span>₹${amt.toLocaleString('en-IN')} (${pct}%)</span>
+                  <span>₹${(Number(amt) || 0).toLocaleString('en-IN')} (${pct}%)</span>
                 </div>
                 <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div class="bg-red-500 h-full rounded-full" style="width: ${pct}%"></div>
@@ -3027,7 +3027,7 @@
                   <p class="text-[11px] text-slate-500 mt-0.5">${esc(item.subtitle)} • ${dStr}</p>
                 </div>
                 <span class="text-xs font-extrabold whitespace-nowrap ${item.isCredit ? 'text-emerald-600' : 'text-rose-600'}">
-                  ${item.isCredit ? '+' : '-'}₹${item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ${item.isCredit ? '+' : '-'}₹${(Number(item.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             `;
