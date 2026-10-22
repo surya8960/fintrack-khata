@@ -1,0 +1,3336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinTrack Khata - Complete Ledger, Simple Interest Loans &amp; Personal Finance</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.10/dist/umd/supabase.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-emerald-800 text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center font-bold text-xl shadow-inner text-white shrink-0">
+          ₹
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight">FinTrack Khata</h1>
+          <p class="text-xs text-emerald-200">Udhar Khata, Interest Loans &amp; Personal Finance</p>
+        </div>
+      </div>
+
+      <!-- Cloud Sync & Auth Status -->
+      <div class="flex items-center space-x-2.5">
+        <div id="syncBadge" class="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-700/60 text-emerald-100 border border-emerald-600/50">
+          <span id="syncDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="syncStatusText">Offline-First (Browser Storage)</span>
+        </div>
+
+        <button type="button" onclick="openAuthModal()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm">
+          <i data-lucide="user" class="w-4 h-4"></i>
+          <span id="authButtonText">Cloud Account</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Secondary Navigation Tabs -->
+  <div class="bg-white border-b border-slate-200 shadow-sm sticky top-[64px] z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1.5 overflow-x-auto no-scrollbar py-2">
+      <button type="button" onclick="switchTab('dashboard')" id="tab-dashboard" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center space-x-2 whitespace-nowrap bg-emerald-100 text-emerald-800">
+        <i data-lucide="layout-dashboard" class="w-4 h-4 shrink-0"></i>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" onclick="switchTab('udhar')" id="tab-udhar" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="book-open" class="w-4 h-4 text-rose-600 shrink-0"></i>
+        <span>Udhar Khata</span>
+      </button>
+      <button type="button" onclick="switchTab('customers')" id="tab-customers" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="percent" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+        <span>Interest Loans</span>
+      </button>
+      <button type="button" onclick="switchTab('calculator')" id="tab-calculator" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="calculator" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+        <span>Interest Calculator</span>
+      </button>
+      <button type="button" onclick="switchTab('accounts')" id="tab-accounts" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="landmark" class="w-4 h-4 shrink-0"></i>
+        <span>Accounts</span>
+      </button>
+      <button type="button" onclick="switchTab('transactions')" id="tab-transactions" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="receipt" class="w-4 h-4 shrink-0"></i>
+        <span>Transactions</span>
+      </button>
+      <button type="button" onclick="switchTab('budgets')" id="tab-budgets" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="pie-chart" class="w-4 h-4 shrink-0"></i>
+        <span>Budgets &amp; Goals</span>
+      </button>
+      <button type="button" onclick="switchTab('reports')" id="tab-reports" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="bar-chart-3" class="w-4 h-4 shrink-0"></i>
+        <span>Reports &amp; History</span>
+      </button>
+      <button type="button" onclick="switchTab('sync')" id="tab-sync" class="nav-tab px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center space-x-2 whitespace-nowrap text-slate-600 hover:bg-slate-100">
+        <i data-lucide="cloud" class="w-4 h-4 shrink-0"></i>
+        <span>Supabase Sync</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- TAB 1: DASHBOARD -->
+    <div id="view-dashboard" class="space-y-6">
+      <!-- Combined Net Worth Hero Card -->
+      <div class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white rounded-3xl p-6 sm:p-8 shadow-lg border border-emerald-700/40">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div>
+            <span class="text-xs font-bold text-emerald-300 uppercase tracking-widest">Total Combined Financial Net Worth</span>
+            <div class="text-3xl sm:text-4xl font-extrabold mt-1 tracking-tight" id="statWebNetWorth">₹0.00</div>
+            <p class="text-xs text-emerald-200/90 mt-1" id="statNetWorthSub">Liquid Accounts + Active Loan Principal &amp; Interest + Net Udhar Receivable</p>
+          </div>
+          <div class="flex flex-wrap gap-2.5">
+            <button type="button" onclick="openNewUdharModal()" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow">
+              <i data-lucide="book-open" class="w-4 h-4"></i>
+              <span>+ Udhar Grahak</span>
+            </button>
+            <button type="button" onclick="openNewCustomerModal()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow">
+              <i data-lucide="user-plus" class="w-4 h-4"></i>
+              <span>+ Byaaj Loan</span>
+            </button>
+            <button type="button" onclick="openNewTransactionModal()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              <span>+ Transaction</span>
+            </button>
+            <button type="button" onclick="switchTab('calculator')" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
+              <i data-lucide="calculator" class="w-4 h-4"></i>
+              <span>Calc Interest</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- High-level Metric Cards (5 cards across modules) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Udhar Lene Baki -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-rose-300 transition" onclick="switchTab('udhar')">
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Udhar Lene Baki</span>
+            <div class="p-2 bg-rose-50 text-rose-600 rounded-xl">
+              <i data-lucide="book-open" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-rose-600" id="statDashUdharPending">₹0.00</div>
+          <p class="text-xs text-slate-500 mt-1" id="statDashUdharCount">0 Grahak active</p>
+        </div>
+
+        <!-- Active Principal -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-emerald-300 transition" onclick="switchTab('customers')">
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Active Principal</span>
+            <div class="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+              <i data-lucide="banknote" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-slate-900" id="statRemainingPrincipal">₹0.00</div>
+          <p class="text-xs text-slate-500 mt-1" id="statTotalPrincipal">Lent: ₹0.00</p>
+        </div>
+
+        <!-- Outstanding Interest -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-300 transition" onclick="switchTab('calculator')">
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Outstanding Interest</span>
+            <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+              <i data-lucide="percent" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-indigo-600" id="statOutstandingInterest">₹0.00</div>
+          <p class="text-xs text-slate-500 mt-1" id="statTotalAccrued">Accrued: ₹0.00</p>
+        </div>
+
+        <!-- Interest Collected -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Interest Collected</span>
+            <div class="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+              <i data-lucide="trending-up" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-emerald-700" id="statInterestPaid">₹0.00</div>
+          <p class="text-xs text-slate-500 mt-1">Paid directly by borrowers</p>
+        </div>
+
+        <!-- Principal Recovered -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Principal Repaid</span>
+            <div class="p-2 bg-amber-50 text-amber-600 rounded-xl">
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-slate-900" id="statPrincipalRepaid">₹0.00</div>
+          <p class="text-xs text-slate-500 mt-1">Reduced principal loans</p>
+        </div>
+      </div>
+
+      <!-- Quick Action Banner -->
+      <div class="bg-gradient-to-r from-emerald-800 to-emerald-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold">Custom Date Simple Interest Engine</h2>
+          <p class="text-sm text-emerald-100 mt-1 max-w-2xl">
+            Calculate simple interest on remaining principal for any custom date range (e.g., 5 Oct to 5 Nov). Full calendar months earn the monthly rate; partial months are prorated by the exact days in that month (28–31 days) without February date drift.
+          </p>
+        </div>
+        <div class="flex items-center space-x-3 w-full md:w-auto shrink-0">
+          <button type="button" onclick="openNewCustomerModal()" class="flex-1 md:flex-none px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-sm font-semibold shadow transition flex items-center justify-center space-x-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>New Customer Loan</span>
+          </button>
+          <button type="button" onclick="switchTab('calculator')" class="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold shadow transition flex items-center justify-center space-x-2">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+            <span>Calculate Interest</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Khata Customer Loans Section -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Active Interest Customer Loans</h3>
+            <p class="text-xs text-slate-500">Live balance breakdown: Remaining Principal vs Accrued Simple Interest</p>
+          </div>
+          <button type="button" onclick="switchTab('customers')" class="text-sm font-semibold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1">
+            <span>View All</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">Customer Name</th>
+                <th class="py-3 px-4">Initial Loan</th>
+                <th class="py-3 px-4">Rate</th>
+                <th class="py-3 px-4">Remaining Principal</th>
+                <th class="py-3 px-4">Outstanding Interest</th>
+                <th class="py-3 px-4">Total Due</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardCustomerTable" class="divide-y divide-slate-100">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: UDHAR KHATA (Dynamic Credit/Debit Ledger) -->
+    <div id="view-udhar" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">📕 Udhar Khata (Grahak Credit / Debit Hisab Kitab)</h2>
+          <p class="text-xs text-slate-500">Record Udhar Diya (You Gave) and Payment Mila (You Got) with running customer balances and bill tracking</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button type="button" onclick="openNewUdharModal()" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-semibold shadow transition flex items-center space-x-1.5">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>+ Naya Grahak</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Udhar Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Kul Udhar Diya (You Gave)</span>
+          <div class="text-2xl font-bold text-rose-600 mt-1" id="statUdharGave">₹0.00</div>
+          <p class="text-xs text-slate-400 mt-1">Goods or cash given on credit</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Kul Payment Mila (You Got)</span>
+          <div class="text-2xl font-bold text-emerald-600 mt-1" id="statUdharGot">₹0.00</div>
+          <p class="text-xs text-slate-400 mt-1">Cash, UPI, and bank payments received</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Kul Lene Baki (Net Pending)</span>
+          <div class="text-2xl font-bold text-rose-600 mt-1" id="statUdharPending">₹0.00</div>
+          <p class="text-xs text-slate-400 mt-1">Net pending receivable from customers</p>
+        </div>
+      </div>
+
+      <!-- Search & Filter Bar -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+          <input type="text" id="udharSearchInput" oninput="renderUdharKhata()" placeholder="Grahak ka naam, phone ya pata khojein..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
+        </div>
+        <div class="flex items-center space-x-2">
+          <button type="button" onclick="setUdharFilter('ALL')" id="udharChipAll" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 text-white">Sabhi</button>
+          <button type="button" onclick="setUdharFilter('PENDING')" id="udharChipPending" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">Lene Baki (Pending)</button>
+          <button type="button" onclick="setUdharFilter('SETTLED')" id="udharChipSettled" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">Chukta (Settled)</button>
+        </div>
+      </div>
+
+      <!-- Udhar Customers Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-slate-900">Grahak List (Customers)</h3>
+          <span id="udharCustomerCountBadge" class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">0 Grahak</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">Grahak (Name)</th>
+                <th class="py-3 px-4">Phone &amp; Pata</th>
+                <th class="py-3 px-4">Udhar Diya (₹)</th>
+                <th class="py-3 px-4">Payment Mila (₹)</th>
+                <th class="py-3 px-4">Net Hisab</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="udharCustomerTableBody" class="divide-y divide-slate-100">
+              <!-- Populated dynamically by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: INTEREST LOANS LIST -->
+    <div id="view-customers" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Interest Loan Customer Ledgers</h2>
+          <p class="text-xs text-slate-500">Manage all money lent, accrued simple interest, and separate interest vs. principal repayments</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+            <input type="text" id="searchInput" oninput="renderCustomerList()" placeholder="Search name or phone..." class="pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-60 sm:w-64">
+          </div>
+          <button type="button" onclick="openNewCustomerModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold shadow transition flex items-center space-x-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>New Loan</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="customerCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- TAB 4: INTEREST CALCULATOR -->
+    <div id="view-calculator" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-3xl mx-auto">
+        <div class="border-b border-slate-200 pb-4 mb-6">
+          <h2 class="text-2xl font-bold text-slate-900 flex items-center space-x-2">
+            <i data-lucide="calculator" class="w-6 h-6 text-indigo-600"></i>
+            <span>Simple Interest Calculator</span>
+          </h2>
+          <p class="text-sm text-slate-500 mt-1">
+            Calculate exact simple interest based on remaining principal amount and custom date ranges (no compounding, exact month-end anchor tracking).
+          </p>
+        </div>
+
+        <form id="calcForm" onsubmit="calculateInterestPreview(event)" class="space-y-5">
+          <!-- Customer Selection -->
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Select Customer Loan *</label>
+            <select id="calcCustomerSelect" onchange="onCalcCustomerChange()" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500">
+              <!-- Populated by JS -->
+            </select>
+          </div>
+
+          <!-- Principal & Default Rate Info -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <div>
+              <span class="text-xs text-slate-500 uppercase font-semibold">Remaining Principal Basis</span>
+              <div id="calcPrincipalDisplay" class="text-xl font-bold text-emerald-700">₹0.00</div>
+              <p class="text-[11px] text-slate-500" id="calcOriginalPrincipalNote">Simple interest accrues on remaining principal</p>
+            </div>
+            <div>
+              <span class="text-xs text-slate-500 uppercase font-semibold">Default Monthly Rate</span>
+              <div id="calcCustomerRateDisplay" class="text-xl font-bold text-indigo-700">5.0% / month</div>
+              <p class="text-[11px] text-slate-500">Configured on customer loan</p>
+            </div>
+          </div>
+
+          <!-- Date Range Pickers -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-1.5">Start Date *</label>
+              <input type="date" id="calcStartDate" onchange="runPreviewCalculation()" required class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500">
+              <span class="text-[11px] text-slate-500">Loan start date or last calculated date</span>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-1.5">End Date *</label>
+              <input type="date" id="calcEndDate" onchange="runPreviewCalculation()" required class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500">
+              <span class="text-[11px] text-slate-500">Calculation cut-off date</span>
+            </div>
+          </div>
+
+          <!-- Editable Monthly Interest Rate -->
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Monthly Interest Rate (%) *</label>
+            <div class="flex flex-wrap items-center gap-3">
+              <input type="number" id="calcMonthlyRate" step="0.1" min="0.1" value="5.0" oninput="runPreviewCalculation()" required class="w-36 p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500">
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" onclick="setCalcRate(2.0)" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg font-medium">2%</button>
+                <button type="button" onclick="setCalcRate(3.0)" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg font-medium">3%</button>
+                <button type="button" onclick="setCalcRate(5.0)" class="px-2.5 py-1 text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg font-bold">5% (Default)</button>
+                <button type="button" onclick="setCalcRate(7.0)" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg font-medium">7%</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlap Warning Banner -->
+          <div id="overlapWarning" class="hidden p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl flex items-start space-x-3">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"></i>
+            <div>
+              <h4 class="text-sm font-bold text-red-800">Duplicate Accrual Blocked</h4>
+              <p class="text-xs text-red-700 mt-0.5" id="overlapWarningText">Overlapping period detected for this customer.</p>
+            </div>
+          </div>
+
+          <!-- Calculation Preview Breakdown Card -->
+          <div id="calculationPreviewCard" class="bg-indigo-50/60 border border-indigo-200 rounded-xl p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-indigo-100 pb-2">
+              <span class="text-xs font-bold text-indigo-900 uppercase">Calculation Breakdown</span>
+              <span class="text-xs bg-indigo-200 text-indigo-800 font-bold px-2 py-0.5 rounded">Simple Interest (No Compounding)</span>
+            </div>
+
+            <div class="text-xs space-y-2 text-slate-700" id="previewBreakdownText">
+              <!-- Populated by JS -->
+            </div>
+
+            <div class="border-t border-indigo-200 pt-3 flex items-center justify-between">
+              <span class="text-sm font-bold text-slate-800">Total Accrued Interest:</span>
+              <span class="text-2xl font-bold text-indigo-700" id="previewTotalInterest">₹0.00</span>
+            </div>
+
+            <p class="text-[11px] text-slate-500 italic">
+              Notice: Remaining principal remains fixed at ₹<span id="previewPrincipalBasis">0</span>. Only the accrued interest ledger is increased.
+            </p>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex justify-end space-x-3 pt-2">
+            <button type="button" onclick="resetCalcForm()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-medium hover:bg-slate-50">Reset</button>
+            <button type="submit" id="recordInterestBtn" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-md transition flex items-center space-x-2">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+              <span>Review &amp; Confirm Interest</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 5: ACCOUNTS -->
+    <div id="view-accounts" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Accounts &amp; Wallets</h2>
+          <p class="text-sm text-slate-500">Track bank accounts, cash in hand, digital wallets, and credit cards</p>
+        </div>
+        <button type="button" onclick="openNewAccountModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold transition flex items-center space-x-2 shadow-sm">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Add Account</span>
+        </button>
+      </div>
+
+      <!-- Total Liquid Net Worth -->
+      <div class="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white rounded-2xl p-6 shadow-md">
+        <span class="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Total Liquid Cash Balance</span>
+        <div class="text-3xl font-extrabold mt-1" id="statWebTotalAccountBalance">₹0.00</div>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <button type="button" onclick="openNewTransactionModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold transition flex items-center space-x-1.5">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+            <span>+ New Transaction</span>
+          </button>
+          <button type="button" onclick="switchTab('transactions')" class="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition flex items-center space-x-1.5">
+            <i data-lucide="history" class="w-3.5 h-3.5"></i>
+            <span>History</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Accounts Grid -->
+      <div id="accountsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- TAB 6: TRANSACTIONS & HISTORY -->
+    <div id="view-transactions" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Transactions History</h2>
+          <p class="text-sm text-slate-500">Detailed record of income, expenses, and inter-account transfers</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button type="button" onclick="exportTransactionsCsv()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition flex items-center space-x-2">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Export CSV</span>
+          </button>
+          <button type="button" onclick="openNewTransactionModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold transition flex items-center space-x-2 shadow-sm">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>New Transaction</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Buttons -->
+      <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
+        <button type="button" onclick="filterTransactions(null)" id="txFilterAll" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 text-slate-800">All</button>
+        <button type="button" onclick="filterTransactions('INCOME')" id="txFilterIncome" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100">Income</button>
+        <button type="button" onclick="filterTransactions('EXPENSE')" id="txFilterExpense" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100">Expense</button>
+        <button type="button" onclick="filterTransactions('TRANSFER')" id="txFilterTransfer" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100">Transfer</button>
+      </div>
+
+      <!-- Transactions List -->
+      <div id="transactionsList" class="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100"></div>
+    </div>
+
+    <!-- TAB 7: BUDGETS & SAVINGS GOALS -->
+    <div id="view-budgets" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Budgets &amp; Savings Goals</h2>
+          <p class="text-sm text-slate-500">Monitor monthly category spending limits and target savings milestones</p>
+        </div>
+        <div class="flex space-x-2">
+          <button type="button" onclick="openNewBudgetModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold transition flex items-center space-x-1.5 shadow-sm">
+            <i data-lucide="pie-chart" class="w-4 h-4"></i>
+            <span>+ Add Budget</span>
+          </button>
+          <button type="button" onclick="openNewGoalModal()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition flex items-center space-x-1.5 shadow-sm">
+            <i data-lucide="target" class="w-4 h-4"></i>
+            <span>+ New Goal</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Monthly Budgets -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-600"></i>
+            <span>Monthly Category Budgets</span>
+          </h3>
+          <div id="budgetsList" class="space-y-3"></div>
+        </div>
+
+        <!-- Savings Goals -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <i data-lucide="target" class="w-5 h-5 text-indigo-600"></i>
+            <span>Savings Goals</span>
+          </h3>
+          <div id="goalsList" class="space-y-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 8: REPORTS & UNIFIED HISTORY -->
+    <div id="view-reports" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Financial Reports &amp; Unified Audit</h2>
+          <p class="text-sm text-slate-500">Complete audit across Udhar Khata, Interest Loans, and Personal Accounts</p>
+        </div>
+        <button type="button" onclick="exportFullAuditCsv()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold transition flex items-center space-x-2 shadow-sm">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Download Complete Audit CSV</span>
+        </button>
+      </div>
+
+      <!-- Income vs Expense vs Net -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Total Income</span>
+          <div class="text-2xl font-bold text-emerald-600 mt-1" id="reportTotalIncome">₹0.00</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Total Expenses</span>
+          <div class="text-2xl font-bold text-red-600 mt-1" id="reportTotalExpense">₹0.00</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Net Cash Flow</span>
+          <div class="text-2xl font-bold text-slate-900 mt-1" id="reportNetCashflow">₹0.00</div>
+        </div>
+      </div>
+
+      <!-- Udhar Khata Audit Section -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <i data-lucide="book-open" class="w-5 h-5 text-rose-600"></i>
+            <span>Udhar Khata Hisab Kitab</span>
+          </h3>
+          <span id="reportUdharRecoveryBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Recovery Rate: 0%</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="p-4 bg-rose-50/60 rounded-xl">
+            <span class="text-xs text-slate-500">Kul Udhar Diya</span>
+            <div class="text-xl font-bold text-rose-600 mt-1" id="reportUdharGave">₹0.00</div>
+          </div>
+          <div class="p-4 bg-emerald-50/60 rounded-xl">
+            <span class="text-xs text-slate-500">Kul Payment Mila</span>
+            <div class="text-xl font-bold text-emerald-600 mt-1" id="reportUdharGot">₹0.00</div>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-xl">
+            <span class="text-xs text-slate-500">Net Lene Baki</span>
+            <div class="text-xl font-bold text-rose-600 mt-1" id="reportUdharPending">₹0.00</div>
+          </div>
+        </div>
+        <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div id="reportUdharRecoveryBar" class="bg-emerald-600 h-full rounded-full transition-all" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Khata Portfolio Audit -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+          <i data-lucide="hand-coins" class="w-5 h-5 text-indigo-600"></i>
+          <span>Interest Loan Portfolio Metrics</span>
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="p-4 bg-slate-50 rounded-xl">
+            <span class="text-xs text-slate-500">Active Principal Lent</span>
+            <div class="text-xl font-bold text-slate-900 mt-1" id="reportLentPrincipal">₹0.00</div>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-xl">
+            <span class="text-xs text-slate-500">Accrued Interest Due</span>
+            <div class="text-xl font-bold text-amber-600 mt-1" id="reportAccruedInterest">₹0.00</div>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-xl">
+            <span class="text-xs text-slate-500">Repayments Collected</span>
+            <div class="text-xl font-bold text-emerald-600 mt-1" id="reportRepayments">₹0.00</div>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-xl">
+            <span class="text-xs text-slate-500">Active Borrowers</span>
+            <div class="text-xl font-bold text-slate-900 mt-1" id="reportBorrowersCount">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expenses by Category & Unified History Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Expenses by Category -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <h3 class="text-lg font-bold text-slate-900">Expenses by Category</h3>
+          <div id="reportCategoryBreakdown" class="space-y-3"></div>
+        </div>
+
+        <!-- Unified Cross-Module Timeline -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h3 class="text-lg font-bold text-slate-900">Unified Activity Timeline</h3>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" onclick="setReportHistoryFilter('ALL')" id="repHistAll" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-white">All</button>
+              <button type="button" onclick="setReportHistoryFilter('KHATA')" id="repHistKhata" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">Udhar</button>
+              <button type="button" onclick="setReportHistoryFilter('LOANS')" id="repHistLoans" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">Loans</button>
+              <button type="button" onclick="setReportHistoryFilter('ACCOUNTS')" id="repHistAccounts" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">Accounts</button>
+            </div>
+          </div>
+          <div id="reportUnifiedTimeline" class="space-y-2.5 max-h-80 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 9: SUPABASE SYNC & AUTH -->
+    <div id="view-sync" class="hidden space-y-6 max-w-4xl mx-auto">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-900 flex items-center space-x-2">
+              <i data-lucide="database" class="w-6 h-6 text-emerald-600"></i>
+              <span>Supabase Cloud Sync</span>
+            </h2>
+            <p class="text-sm text-slate-500 mt-1">
+              Two-way sync between your local browser ledger and your own Supabase PostgreSQL project protected by Row Level Security (RLS).
+            </p>
+          </div>
+          <button type="button" onclick="resetDemoDataConfirm()" class="px-3.5 py-2 border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-xl text-xs font-bold transition shrink-0">
+            Reset Local Demo Data
+          </button>
+        </div>
+
+        <!-- Credentials Form -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Supabase Project URL (HTTPS)</label>
+            <input type="url" id="supabaseUrlInput" placeholder="https://your-project.supabase.co" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Supabase Anon (Public) Key</label>
+            <input type="password" id="supabaseKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+          </div>
+          <div class="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
+            <span id="supabaseConfigStatus" class="text-xs text-slate-500">Never use your service_role secret key in the client.</span>
+            <div class="flex gap-2">
+              <button type="button" onclick="openAuthModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition">
+                Sign In / Register
+              </button>
+              <button type="button" onclick="saveSupabaseSettings()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition">
+                Save Connection
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sync Action Card -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+          <div>
+            <h4 class="text-sm font-bold text-emerald-900">Two-Way Cloud Sync</h4>
+            <p class="text-xs text-emerald-700" id="lastSyncReportText">Replays local deletions, uploads all 9 local tables, and downloads missing cloud rows.</p>
+          </div>
+          <button type="button" id="btnSyncNow" onclick="syncWithSupabase()" class="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition flex items-center justify-center space-x-2 shrink-0">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span>Sync All Data Now</span>
+          </button>
+        </div>
+
+        <!-- Schema Copy -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-slate-800">PostgreSQL Database Schema (0001_initial_schema.sql)</h3>
+            <button type="button" onclick="copySqlSchema()" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>Copy SQL Hint</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-500 mb-3">Run <code>supabase/migrations/0001_initial_schema.sql</code> in your Supabase SQL Editor to create all 9 tables (<code>khata_customers</code>, <code>interest_accruals</code>, <code>loan_payments</code>, <code>udhar_customers</code>, <code>udhar_entries</code>, <code>accounts</code>, <code>transactions</code>, <code>budgets</code>, <code>goals</code>) with owner-only Row Level Security.</p>
+          <pre id="sqlSchemaSnippet" class="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto font-mono">-- Run supabase/migrations/0001_initial_schema.sql in Supabase SQL Editor
+-- Enforces Row Level Security: auth.uid() = user_id on all 9 FinTrack tables.</pre>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODALS -->
+  <!-- ========================================================================= -->
+
+  <!-- MODAL: IN-PAGE CONFIRMATION DIALOG (Replaces window.confirm) -->
+  <div id="confirmModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900" id="confirmModalTitle">Confirm Action</h3>
+        <button type="button" onclick="closeConfirmModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <p class="text-sm text-slate-600 whitespace-pre-line" id="confirmModalMessage">Are you sure?</p>
+      <div class="flex justify-end space-x-2.5 pt-2">
+        <button type="button" onclick="closeConfirmModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-medium hover:bg-slate-50">Cancel</button>
+        <button type="button" id="confirmModalActionBtn" onclick="executeConfirmModalAction()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW UDHAR CUSTOMER (+ Naya Grahak) -->
+  <div id="newUdharModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">📕 Naya Udhar Grahak Jodein</h3>
+        <button type="button" onclick="closeNewUdharModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="newUdharForm" onsubmit="handleCreateUdharCustomer(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Grahak ka Naam (Customer Name) *</label>
+          <input type="text" id="newUdharName" required placeholder="e.g. Ramesh General Store" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Mobile Number</label>
+          <input type="tel" id="newUdharPhone" placeholder="+91 98765 12345" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Pata (Address / Shop Location)</label>
+          <input type="text" id="newUdharAddress" placeholder="e.g. Main Market, Shop #12" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Initial Udhar Diya (Optional Opening Credit ₹)</label>
+          <input type="number" id="newUdharInitialGave" min="0" step="0.01" placeholder="0" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-rose-600">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Notes</label>
+          <input type="text" id="newUdharNotes" placeholder="e.g. Daily grocery credit customer" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div class="flex justify-end space-x-2 pt-3">
+          <button type="button" onclick="closeNewUdharModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-medium hover:bg-slate-50">Radd Karein</button>
+          <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold shadow">Grahak Save Karein</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: UDHAR CUSTOMER DETAIL LEDGER -->
+  <div id="udharDetailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div>
+          <h3 class="text-xl font-bold text-slate-900" id="udharDetailName">Grahak Hisab</h3>
+          <p class="text-xs text-slate-500" id="udharDetailSubtitle">Phone • Address</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button type="button" onclick="sendActiveUdharReminder()" class="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold flex items-center space-x-1">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+            <span>Reminder</span>
+          </button>
+          <button type="button" onclick="deleteActiveUdharCustomer()" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+          <button type="button" onclick="closeUdharDetailModal()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-5 flex-1">
+        <!-- Running Balance Summary -->
+        <div id="udharDetailBalanceCard" class="rounded-2xl p-5 border text-center space-y-2">
+          <span id="udharDetailStatusLabel" class="text-xs font-bold uppercase tracking-wider">Aapko Lena Hai</span>
+          <div id="udharDetailBalanceValue" class="text-3xl font-extrabold">₹0.00</div>
+          <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-200/80 text-xs">
+            <div>
+              <span class="text-slate-500 block">Kul Udhar Diya</span>
+              <strong id="udharDetailTotalGave" class="text-rose-600 text-sm">₹0.00</strong>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Kul Payment Mila</span>
+              <strong id="udharDetailTotalGot" class="text-emerald-600 text-sm">₹0.00</strong>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Kul Entries</span>
+              <strong id="udharDetailEntriesCount" class="text-slate-800 text-sm">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add Entry Inline Form (Udhar Diya / Payment Mila) -->
+        <form id="udharEntryForm" onsubmit="handleCreateUdharEntry(event)" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase text-slate-700">Nayi Entry Jodein (Add Entry)</span>
+            <div class="flex space-x-2">
+              <button type="button" id="btnUdharTypeGave" onclick="setUdharEntryType('GAVE')" class="px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white">Udhar Diya (You Gave)</button>
+              <button type="button" id="btnUdharTypeGot" onclick="setUdharEntryType('GOT')" class="px-3 py-1 rounded-lg text-xs font-medium bg-white text-slate-700 border border-slate-300">Payment Mila (You Got)</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <input type="number" id="udharEntryAmount" required min="1" step="0.01" placeholder="Rashi (Amount ₹) *" class="p-2 border border-slate-300 rounded-xl text-sm font-bold">
+            <input type="text" id="udharEntryBill" placeholder="Bill / Invoice # (e.g. BILL-810)" class="p-2 border border-slate-300 rounded-xl text-sm">
+            <input type="text" id="udharEntryNote" placeholder="Viveran / Saman ka naam" class="p-2 border border-slate-300 rounded-xl text-sm">
+          </div>
+          <div class="flex justify-end">
+            <button type="submit" id="udharEntrySubmitBtn" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow transition">
+              + Record Udhar Diya
+            </button>
+          </div>
+        </form>
+
+        <!-- Timeline -->
+        <div>
+          <h4 class="text-sm font-bold text-slate-800 mb-2.5">Hisab Timeline</h4>
+          <div id="udharEntriesList" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW CUSTOMER LOAN -->
+  <div id="newCustomerModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Create New Customer Loan</h3>
+        <button type="button" onclick="closeNewCustomerModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="newCustomerForm" onsubmit="handleCreateCustomer(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Customer Name *</label>
+          <input type="text" id="newCustName" required placeholder="e.g. Rajesh Kumar" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+          <input type="tel" id="newCustPhone" placeholder="+91 98765 43210" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Principal Amount (₹) *</label>
+          <input type="number" id="newCustPrincipal" required min="1" step="0.01" placeholder="10000" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-emerald-700">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Monthly Rate (%)</label>
+            <input type="number" id="newCustRate" required min="0.1" step="0.1" value="5.0" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-indigo-700">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Loan Start Date *</label>
+            <input type="date" id="newCustStartDate" required class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Notes / Purpose</label>
+          <input type="text" id="newCustNotes" placeholder="e.g. Shop renovation loan" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3">
+          <button type="button" onclick="closeNewCustomerModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-medium hover:bg-slate-50">Cancel</button>
+          <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow">Save Loan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CUSTOMER LEDGER & PAYMENTS -->
+  <div id="customerDetailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Header -->
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div>
+          <h3 class="text-xl font-bold text-slate-900" id="detailCustomerName">Customer Details</h3>
+          <p class="text-xs text-slate-500" id="detailCustomerSubtitle">Phone • Loan Date</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button type="button" onclick="deleteActiveLoanCustomer()" class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+          <button type="button" onclick="closeCustomerDetailModal()" class="text-slate-400 hover:text-slate-600 p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content Scroll -->
+      <div class="p-6 overflow-y-auto space-y-6 flex-1">
+        <!-- Separate Principal vs Interest Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Principal Card -->
+          <div class="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase text-emerald-800">Principal Balance</span>
+              <span class="text-xs text-emerald-600 font-semibold" id="detailPrincipalOriginal">Orig: ₹0</span>
+            </div>
+            <div class="text-2xl font-bold text-emerald-800" id="detailPrincipalRemaining">₹0.00</div>
+            <p class="text-[11px] text-slate-500">Repaid: <span id="detailPrincipalRepaid">₹0.00</span></p>
+            <button type="button" onclick="openPaymentModal('PRINCIPAL_REPAYMENT')" class="w-full mt-2 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center space-x-1.5">
+              <i data-lucide="arrow-down-left" class="w-3.5 h-3.5"></i>
+              <span>Repay Principal (Reduces Principal Only)</span>
+            </button>
+          </div>
+
+          <!-- Interest Card -->
+          <div class="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase text-indigo-800">Accrued Interest Due</span>
+              <span class="text-xs text-indigo-600 font-semibold" id="detailInterestRate">5% / mo</span>
+            </div>
+            <div class="text-2xl font-bold text-indigo-800" id="detailInterestOutstanding">₹0.00</div>
+            <p class="text-[11px] text-slate-500">Total Accrued: <span id="detailInterestAccrued">₹0.00</span> • Paid: <span id="detailInterestPaid">₹0.00</span></p>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <button type="button" onclick="goToCalcForCustomer()" class="py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center space-x-1">
+                <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+                <span>Calc Interest</span>
+              </button>
+              <button type="button" onclick="openPaymentModal('INTEREST_PAYMENT')" class="py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center space-x-1">
+                <i data-lucide="percent" class="w-3.5 h-3.5"></i>
+                <span>Pay Interest</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Tabs -->
+        <div>
+          <div class="flex border-b border-slate-200 space-x-4 mb-3">
+            <button type="button" onclick="switchDetailTab('accruals')" id="dtab-accruals" class="pb-2 text-sm font-bold text-emerald-700 border-b-2 border-emerald-700">Interest History</button>
+            <button type="button" onclick="switchDetailTab('payments')" id="dtab-payments" class="pb-2 text-sm font-medium text-slate-500 hover:text-slate-800">Payments Ledger</button>
+          </div>
+
+          <!-- Accrual History List -->
+          <div id="detailAccrualsList" class="space-y-2.5"></div>
+
+          <!-- Payments History List -->
+          <div id="detailPaymentsList" class="hidden space-y-2.5"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECORD PAYMENT -->
+  <div id="paymentModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900" id="paymentModalTitle">Record Payment</h3>
+        <button type="button" onclick="closePaymentModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-3 rounded-xl text-xs" id="paymentNoticeBox"></div>
+
+      <form id="paymentForm" onsubmit="handleRecordPayment(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Amount (₹) *</label>
+          <input type="number" id="paymentAmountInput" required min="1" step="0.01" placeholder="Enter amount" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Payment Mode</label>
+          <select id="paymentModeSelect" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+            <option value="CASH">Cash</option>
+            <option value="UPI">UPI</option>
+            <option value="BANK_TRANSFER">Bank Transfer</option>
+            <option value="CHEQUE">Cheque</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Receipt Note</label>
+          <input type="text" id="paymentNotesInput" placeholder="e.g. Month 1 interest payment" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3">
+          <button type="button" onclick="closePaymentModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-medium hover:bg-slate-50">Cancel</button>
+          <button type="submit" id="confirmPaymentBtn" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow">Confirm Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: AUTHENTICATION (EMAIL + PASSWORD) -->
+  <div id="authModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Supabase Cloud Account</h3>
+        <button type="button" onclick="closeAuthModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex border-b border-slate-200">
+        <button type="button" onclick="switchAuthMode('signin')" id="btnAuthSignin" class="flex-1 pb-2 font-bold text-sm text-emerald-700 border-b-2 border-emerald-700">Sign In</button>
+        <button type="button" onclick="switchAuthMode('signup')" id="btnAuthSignup" class="flex-1 pb-2 font-medium text-sm text-slate-500">Sign Up</button>
+      </div>
+
+      <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+          <input type="email" id="authEmail" required placeholder="shopkeeper@example.com" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+          <input type="password" id="authPassword" required placeholder="••••••••" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+
+        <button type="submit" id="authSubmitBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow transition">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW ACCOUNT -->
+  <div id="newAccountModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Add Account / Wallet</h3>
+        <button type="button" onclick="closeNewAccountModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="newAccountForm" onsubmit="handleCreateAccount(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Account Name *</label>
+          <input type="text" id="newAccName" required placeholder="e.g. HDFC Salary Account" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Account Type</label>
+          <select id="newAccType" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+            <option value="BANK">Bank Account</option>
+            <option value="CASH">Cash in Hand</option>
+            <option value="WALLET">Digital Wallet (Paytm/GPay)</option>
+            <option value="CREDIT_CARD">Credit Card</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Current Balance (₹)</label>
+          <input type="number" id="newAccBalance" step="0.01" value="0.00" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Account Number / Note</label>
+          <input type="text" id="newAccNumber" placeholder="e.g. •••• 4892" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div class="flex space-x-3 pt-2">
+          <button type="button" onclick="closeNewAccountModal()" class="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow">Save Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW TRANSACTION -->
+  <div id="newTransactionModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Record Transaction</h3>
+        <button type="button" onclick="closeNewTransactionModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="newTransactionForm" onsubmit="handleCreateTransaction(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Transaction Type</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="setTxModalType('EXPENSE')" id="btnTxTypeExpense" class="py-2 rounded-xl text-xs font-bold bg-red-600 text-white">Expense</button>
+            <button type="button" onclick="setTxModalType('INCOME')" id="btnTxTypeIncome" class="py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700">Income</button>
+            <button type="button" onclick="setTxModalType('TRANSFER')" id="btnTxTypeTransfer" class="py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700">Transfer</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Title / Description *</label>
+          <input type="text" id="newTxTitle" required placeholder="e.g. Office Rent / Client Fee" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Amount (₹) *</label>
+            <input type="number" id="newTxAmount" required min="1" step="0.01" placeholder="1000" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-emerald-700">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1" id="txSourceAccountLabel">Account</label>
+            <select id="newTxAccountSelect" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm"></select>
+          </div>
+        </div>
+        <div id="txTargetAccountWrap" class="hidden">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">To Destination Account *</label>
+          <select id="newTxTargetAccountSelect" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+          <input type="text" id="newTxCategory" value="General" placeholder="e.g. Food, Rent, Supplies" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Note / Tag</label>
+          <input type="text" id="newTxNote" placeholder="Receipt or reference notes" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div class="flex space-x-3 pt-2">
+          <button type="button" onclick="closeNewTransactionModal()" class="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow">Save Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW BUDGET -->
+  <div id="newBudgetModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Add Category Budget</h3>
+        <button type="button" onclick="closeNewBudgetModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="newBudgetForm" onsubmit="handleCreateBudget(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Category Name *</label>
+          <input type="text" id="newBgtCategory" required placeholder="e.g. Rent &amp; Bills / Supplies" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Monthly Spending Limit (₹) *</label>
+          <input type="number" id="newBgtLimit" required min="1" step="100" placeholder="15000" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold">
+        </div>
+        <div class="flex space-x-3 pt-2">
+          <button type="button" onclick="closeNewBudgetModal()" class="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow">Save Budget</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NEW GOAL -->
+  <div id="newGoalModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Create Savings Goal</h3>
+        <button type="button" onclick="closeNewGoalModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="newGoalForm" onsubmit="handleCreateGoal(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Goal Name *</label>
+          <input type="text" id="newGoalName" required placeholder="e.g. New Equipment / Emergency Fund" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Target Amount (₹) *</label>
+            <input type="number" id="newGoalTarget" required min="1" step="100" placeholder="50000" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Initial Deposit (₹)</label>
+            <input type="number" id="newGoalCurrent" step="100" value="0" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Target Days to Complete</label>
+          <input type="number" id="newGoalDays" value="90" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm">
+        </div>
+        <div class="flex space-x-3 pt-2">
+          <button type="button" onclick="closeNewGoalModal()" class="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow">Create Goal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONTRIBUTE TO GOAL -->
+  <div id="contributeGoalModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900" id="contributeGoalTitle">Contribute to Goal</h3>
+        <button type="button" onclick="closeContributeModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="contributeGoalForm" onsubmit="handleContributeGoal(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Deposit Amount (₹) *</label>
+          <input type="number" id="contributeGoalAmount" required min="1" step="10" placeholder="5000" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-indigo-600">
+        </div>
+        <div class="flex space-x-3 pt-2">
+          <button type="button" onclick="closeContributeModal()" class="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow">Deposit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <!-- ========================================================================= -->
+  <script>
+    // Safe HTML escape
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
+    // RFC 4180 CSV cell; neutralises spreadsheet formula injection (=, +, -, @)
+    function csvCell(value) {
+      let t = String(value ?? '').replace(/[\r\n]+/g, ' ');
+      if (/^[=+\-@]/.test(t)) t = "'" + t;
+      return '"' + t.replace(/"/g, '""') + '"';
+    }
+
+    // Commercial HALF_UP rounding to 2 decimal places (matches InterestCalculator.roundMoney)
+    function roundMoney(val) {
+      return Math.round((Number(val) + Number.EPSILON) * 100) / 100;
+    }
+
+    // Safe UUID generator
+    function genId() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+    }
+
+    // Safe localStorage wrapper for sandboxed environments
+    const memoryFallback = {};
+    function storageGet(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        return memoryFallback[key] || null;
+      }
+    }
+    function storageSet(key, val) {
+      try {
+        localStorage.setItem(key, val);
+      } catch (e) {
+        memoryFallback[key] = val;
+      }
+    }
+    function storageRemove(key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        delete memoryFallback[key];
+      }
+    }
+
+    // In-page Toast Notification (replaces alert())
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const colors = {
+        success: 'bg-emerald-800 text-white border-emerald-600',
+        error: 'bg-rose-700 text-white border-rose-500',
+        info: 'bg-slate-800 text-white border-slate-600'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-start justify-between gap-3 px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-medium transition-all duration-200 ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        <span class="leading-snug">${esc(message)}</span>
+        <button type="button" class="text-white/70 hover:text-white font-bold text-sm leading-none">&times;</button>
+      `;
+      toast.querySelector('button').addEventListener('click', () => toast.remove());
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, 4200);
+    }
+
+    // In-page Confirmation Modal (replaces confirm())
+    let pendingConfirmCallback = null;
+    function openConfirmModal({ title, message, confirmText = 'Confirm', danger = false, onConfirm }) {
+      pendingConfirmCallback = onConfirm;
+      document.getElementById('confirmModalTitle').innerText = title || 'Confirm Action';
+      document.getElementById('confirmModalMessage').innerText = message || 'Are you sure?';
+      const btn = document.getElementById('confirmModalActionBtn');
+      btn.innerText = confirmText;
+      btn.className = danger
+        ? 'px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold shadow'
+        : 'px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow';
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+    function closeConfirmModal() {
+      pendingConfirmCallback = null;
+      document.getElementById('confirmModal').classList.add('hidden');
+    }
+    function executeConfirmModalAction() {
+      const fn = pendingConfirmCallback;
+      closeConfirmModal();
+      if (typeof fn === 'function') fn();
+    }
+
+    // Storage Keys
+    const STORAGE_KEY_CUSTOMERS = 'fintrack_customers';
+    const STORAGE_KEY_ACCRUALS = 'fintrack_accruals';
+    const STORAGE_KEY_PAYMENTS = 'fintrack_payments';
+    const STORAGE_KEY_UDHAR_CUSTOMERS = 'fintrack_udhar_customers';
+    const STORAGE_KEY_UDHAR_ENTRIES = 'fintrack_udhar_entries';
+    const STORAGE_KEY_ACCOUNTS = 'fintrack_accounts';
+    const STORAGE_KEY_TRANSACTIONS = 'fintrack_transactions';
+    const STORAGE_KEY_BUDGETS = 'fintrack_budgets';
+    const STORAGE_KEY_GOALS = 'fintrack_goals';
+    const STORAGE_KEY_DELETES = 'fintrack_pending_deletes';
+    const STORAGE_KEY_SB_URL = 'fintrack_supabase_url';
+    const STORAGE_KEY_SB_KEY = 'fintrack_supabase_key';
+
+    // Application State
+    let customers = [];
+    let accruals = [];
+    let payments = [];
+    let udharCustomers = [];
+    let udharEntries = [];
+    let accounts = [];
+    let transactions = [];
+    let budgets = [];
+    let goals = [];
+    let pendingDeletes = [];
+
+    let activeCustomerId = null;
+    let activeUdharCustomerId = null;
+    let activeUdharEntryType = 'GAVE';
+    let activeUdharFilter = 'ALL';
+    let activePaymentType = 'INTEREST_PAYMENT';
+    let authMode = 'signin';
+    let activeTxFilter = null;
+    let modalTxType = 'EXPENSE';
+    let activeContributeGoalId = null;
+    let activeReportHistoryFilter = 'ALL';
+
+    let supabaseClient = null;
+    let currentSessionUser = null;
+
+    // Seed Demo Data (matches KhataRepository.kt & FinanceRepository.kt)
+    function seedDefaultData() {
+      const now = Date.now();
+      const dayMs = 86400000;
+      const year = new Date().getFullYear();
+      const oct5 = `${year}-10-05`;
+      const nov5 = `${year}-11-05`;
+      const sep15 = `${year}-09-15`;
+      const oct15 = `${year}-10-15`;
+
+      const c1Id = 'c1111111-1111-1111-1111-111111111111';
+      const c2Id = 'c2222222-2222-2222-2222-222222222222';
+
+      customers = [
+        {
+          id: c1Id,
+          name: 'Rajesh Kumar',
+          phone: '+91 98765 43210',
+          address: 'Gali No. 3, Gandhi Nagar',
+          principal_amount: 10000.0,
+          monthly_interest_rate: 5.0,
+          loan_start_date: oct5,
+          total_accrued_interest: 500.0,
+          total_interest_paid: 0.0,
+          total_principal_repaid: 0.0,
+          last_calculation_date: nov5,
+          notes: 'Shop expansion loan. 5% monthly rate as agreed.'
+        },
+        {
+          id: c2Id,
+          name: 'Sunil Verma',
+          phone: '+91 91234 56789',
+          address: 'Rani Bagh, Old Market',
+          principal_amount: 25000.0,
+          monthly_interest_rate: 4.0,
+          loan_start_date: sep15,
+          total_accrued_interest: 1000.0,
+          total_interest_paid: 1000.0,
+          total_principal_repaid: 5000.0,
+          last_calculation_date: oct15,
+          notes: 'Wholesale inventory credit.'
+        }
+      ];
+
+      accruals = [
+        {
+          id: 'acc11111-1111-1111-1111-111111111111',
+          customer_id: c1Id,
+          start_date: oct5,
+          end_date: nov5,
+          interest_rate: 5.0,
+          principal_basis: 10000.0,
+          completed_months: 1,
+          partial_days: 0,
+          days_in_partial_month: 31,
+          calculated_interest: 500.0,
+          calculation_breakdown: '1 month @ 5.00% on ₹10,000.00 principal = ₹500.00'
+        }
+      ];
+
+      payments = [
+        {
+          id: 'pay11111-1111-1111-1111-111111111111',
+          customer_id: c2Id,
+          payment_type: 'INTEREST_PAYMENT',
+          amount: 1000.0,
+          payment_date: new Date(now - 3 * dayMs).toISOString(),
+          payment_mode: 'UPI',
+          notes: 'Interest paid on time for 1st month'
+        },
+        {
+          id: 'pay22222-2222-2222-2222-222222222222',
+          customer_id: c2Id,
+          payment_type: 'PRINCIPAL_REPAYMENT',
+          amount: 5000.0,
+          payment_date: new Date(now - 2 * dayMs).toISOString(),
+          payment_mode: 'CASH',
+          notes: 'Principal reduction installment'
+        }
+      ];
+
+      udharCustomers = [
+        {
+          id: 'uc-001',
+          name: 'Ramesh General Store',
+          phone: '+91 98765 12345',
+          address: 'Main Market, Shop #12',
+          notes: 'Daily grocery credit customer',
+          createdAt: now - 10 * dayMs
+        },
+        {
+          id: 'uc-002',
+          name: 'Priya Medical Store',
+          phone: '+91 94567 89012',
+          address: 'Station Road, Near Civil Hospital',
+          notes: 'Wholesale medicine orders',
+          createdAt: now - 9 * dayMs
+        },
+        {
+          id: 'uc-003',
+          name: 'Amit Sharma',
+          phone: '+91 91234 56780',
+          address: 'Sector 4, Flat 102',
+          notes: 'Regular neighborhood customer',
+          createdAt: now - 7 * dayMs
+        }
+      ];
+
+      udharEntries = [
+        {
+          id: 'ue-001',
+          customerId: 'uc-001',
+          amount: 4500.0,
+          type: 'GAVE',
+          date: now - 5 * dayMs,
+          note: 'Rice & Cooking Oil sacks',
+          billNumber: 'BILL-809'
+        },
+        {
+          id: 'ue-002',
+          customerId: 'uc-001',
+          amount: 2000.0,
+          type: 'GOT',
+          date: now - 2 * dayMs,
+          note: 'Cash payment received',
+          billNumber: ''
+        },
+        {
+          id: 'ue-003',
+          customerId: 'uc-002',
+          amount: 8200.0,
+          type: 'GAVE',
+          date: now - 8 * dayMs,
+          note: 'Surgical items carton',
+          billNumber: 'INV-412'
+        },
+        {
+          id: 'ue-004',
+          customerId: 'uc-002',
+          amount: 8200.0,
+          type: 'GOT',
+          date: now - 1 * dayMs,
+          note: 'Full payment via PhonePe',
+          billNumber: 'UPI-771'
+        },
+        {
+          id: 'ue-005',
+          customerId: 'uc-003',
+          amount: 1850.0,
+          type: 'GAVE',
+          date: now - 3 * dayMs,
+          note: 'Monthly household rations',
+          billNumber: 'BILL-930'
+        }
+      ];
+
+      accounts = [
+        { id: 'acc-hdfc-01', name: 'HDFC Salary Account', type: 'BANK', balance: 48500.0, accountNumber: '•••• 4892' },
+        { id: 'acc-sbi-02', name: 'SBI Savings', type: 'BANK', balance: 120000.0, accountNumber: '•••• 7311' },
+        { id: 'acc-cash-03', name: 'Shop Cash Box', type: 'CASH', balance: 15200.0, accountNumber: 'Cash in Hand' }
+      ];
+
+      transactions = [
+        { id: 'tx-001', accountId: 'acc-hdfc-01', targetAccountId: null, title: 'Client Consulting Fee', amount: 35000.0, type: 'INCOME', category: 'Business Income', note: 'Direct NEFT transfer', dateTimestamp: now - 2 * dayMs },
+        { id: 'tx-002', accountId: 'acc-hdfc-01', targetAccountId: null, title: 'Office Space Rent', amount: 12000.0, type: 'EXPENSE', category: 'Rent & Bills', note: 'Monthly rent', dateTimestamp: now - 4 * dayMs },
+        { id: 'tx-003', accountId: 'acc-cash-03', targetAccountId: null, title: 'Stationery & Inventory', amount: 2400.0, type: 'EXPENSE', category: 'Supplies', note: 'Receipt #4092', dateTimestamp: now - 6 * dayMs },
+        { id: 'tx-004', accountId: 'acc-hdfc-01', targetAccountId: 'acc-cash-03', title: 'ATM Cash Withdrawal', amount: 5000.0, type: 'TRANSFER', category: 'Transfer', note: 'Cash reserve replenishment', dateTimestamp: now - 8 * dayMs }
+      ];
+
+      budgets = [
+        { id: 'bgt-01', category: 'Rent & Bills', monthlyLimit: 15000.0 },
+        { id: 'bgt-02', category: 'Supplies', monthlyLimit: 10000.0 },
+        { id: 'bgt-03', category: 'Travel & Food', monthlyLimit: 8000.0 }
+      ];
+
+      goals = [
+        { id: 'gol-01', name: 'New Shop Counter & Laptop', targetAmount: 75000.0, currentAmount: 45000.0, deadlineDays: 60 },
+        { id: 'gol-02', name: 'Emergency Reserve Fund', targetAmount: 150000.0, currentAmount: 110000.0, deadlineDays: 120 }
+      ];
+
+      pendingDeletes = [];
+      saveData();
+    }
+
+    function initData() {
+      const storedCust = storageGet(STORAGE_KEY_CUSTOMERS);
+      if (storedCust) {
+        try {
+          customers = JSON.parse(storedCust) || [];
+          accruals = JSON.parse(storageGet(STORAGE_KEY_ACCRUALS) || '[]');
+          payments = JSON.parse(storageGet(STORAGE_KEY_PAYMENTS) || '[]');
+          udharCustomers = JSON.parse(storageGet(STORAGE_KEY_UDHAR_CUSTOMERS) || '[]');
+          udharEntries = JSON.parse(storageGet(STORAGE_KEY_UDHAR_ENTRIES) || '[]');
+          accounts = JSON.parse(storageGet(STORAGE_KEY_ACCOUNTS) || '[]');
+          transactions = JSON.parse(storageGet(STORAGE_KEY_TRANSACTIONS) || '[]');
+          budgets = JSON.parse(storageGet(STORAGE_KEY_BUDGETS) || '[]');
+          goals = JSON.parse(storageGet(STORAGE_KEY_GOALS) || '[]');
+          pendingDeletes = JSON.parse(storageGet(STORAGE_KEY_DELETES) || '[]');
+          if (udharCustomers.length === 0 && udharEntries.length === 0) {
+            // Ensure upgraded schema has initial Udhar data if migrating from older local storage
+            seedDefaultData();
+          }
+        } catch (e) {
+          seedDefaultData();
+        }
+      } else {
+        seedDefaultData();
+      }
+
+      const sbUrl = storageGet(STORAGE_KEY_SB_URL) || '';
+      const sbKey = storageGet(STORAGE_KEY_SB_KEY) || '';
+      if (sbUrl && sbKey) {
+        document.getElementById('supabaseUrlInput').value = sbUrl;
+        document.getElementById('supabaseKeyInput').value = sbKey;
+        initSupabaseClient(sbUrl, sbKey);
+      }
+    }
+
+    function saveData() {
+      storageSet(STORAGE_KEY_CUSTOMERS, JSON.stringify(customers));
+      storageSet(STORAGE_KEY_ACCRUALS, JSON.stringify(accruals));
+      storageSet(STORAGE_KEY_PAYMENTS, JSON.stringify(payments));
+      storageSet(STORAGE_KEY_UDHAR_CUSTOMERS, JSON.stringify(udharCustomers));
+      storageSet(STORAGE_KEY_UDHAR_ENTRIES, JSON.stringify(udharEntries));
+      storageSet(STORAGE_KEY_ACCOUNTS, JSON.stringify(accounts));
+      storageSet(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
+      storageSet(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
+      storageSet(STORAGE_KEY_GOALS, JSON.stringify(goals));
+      storageSet(STORAGE_KEY_DELETES, JSON.stringify(pendingDeletes));
+    }
+
+    function markDeleted(table, id) {
+      pendingDeletes.push({ table, id });
+    }
+
+    function resetDemoDataConfirm() {
+      openConfirmModal({
+        title: 'Reset Local Demo Data?',
+        message: 'This will restore all default sample customers, Udhar Khata entries, loans, accounts, and budgets in this browser.',
+        confirmText: 'Reset Data',
+        danger: true,
+        onConfirm: () => {
+          storageRemove(STORAGE_KEY_CUSTOMERS);
+          seedDefaultData();
+          renderAllViews();
+          showToast('Demo data restored to defaults.', 'info');
+        }
+      });
+    }
+
+    function renderAllViews() {
+      renderDashboard();
+      renderUdharKhata();
+      renderCustomerList();
+      populateCalcCustomerOptions();
+      renderAccounts();
+      renderTransactions();
+      renderBudgetsAndGoals();
+      renderReports();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        t.classList.remove('bg-emerald-100', 'text-emerald-800', 'font-semibold');
+        t.classList.add('text-slate-600', 'font-medium');
+      });
+      const currentTabBtn = document.getElementById('tab-' + tabId);
+      if (currentTabBtn) {
+        currentTabBtn.classList.add('bg-emerald-100', 'text-emerald-800', 'font-semibold');
+        currentTabBtn.classList.remove('text-slate-600', 'font-medium');
+      }
+
+      ['dashboard', 'udhar', 'customers', 'calculator', 'sync', 'accounts', 'transactions', 'budgets', 'reports'].forEach(v => {
+        const viewEl = document.getElementById('view-' + v);
+        if (viewEl) viewEl.classList.add('hidden');
+      });
+      const activeView = document.getElementById('view-' + tabId);
+      if (activeView) activeView.classList.remove('hidden');
+
+      if (tabId === 'dashboard') renderDashboard();
+      if (tabId === 'udhar') renderUdharKhata();
+      if (tabId === 'customers') renderCustomerList();
+      if (tabId === 'calculator') populateCalcCustomerOptions();
+      if (tabId === 'accounts') renderAccounts();
+      if (tabId === 'transactions') renderTransactions();
+      if (tabId === 'budgets') renderBudgetsAndGoals();
+      if (tabId === 'reports') renderReports();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // =========================================================================
+    // UDHAR KHATA HELPERS & RENDERERS
+    // =========================================================================
+    function getUdharStatsForCustomer(customerId) {
+      let gave = 0;
+      let got = 0;
+      let count = 0;
+      udharEntries.forEach(e => {
+        if (e.customerId === customerId) {
+          count++;
+          if (e.type === 'GAVE') gave += Number(e.amount || 0);
+          else if (e.type === 'GOT') got += Number(e.amount || 0);
+        }
+      });
+      return { gave: roundMoney(gave), got: roundMoney(got), balance: roundMoney(gave - got), count };
+    }
+
+    function getAggregateUdharStats() {
+      let totalGave = 0;
+      let totalGot = 0;
+      udharCustomers.forEach(c => {
+        const st = getUdharStatsForCustomer(c.id);
+        totalGave += st.gave;
+        totalGot += st.got;
+      });
+      const netPending = Math.max(0, roundMoney(totalGave - totalGot));
+      return { totalGave: roundMoney(totalGave), totalGot: roundMoney(totalGot), netPending };
+    }
+
+    function setUdharFilter(filter) {
+      activeUdharFilter = filter;
+      const map = { ALL: 'udharChipAll', PENDING: 'udharChipPending', SETTLED: 'udharChipSettled' };
+      Object.entries(map).forEach(([k, id]) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.className = (k === filter)
+            ? 'px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 text-white'
+            : 'px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200';
+        }
+      });
+      renderUdharKhata();
+    }
+
+    function renderUdharKhata() {
+      const agg = getAggregateUdharStats();
+      document.getElementById('statUdharGave').innerText = '₹' + agg.totalGave.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statUdharGot').innerText = '₹' + agg.totalGot.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statUdharPending').innerText = '₹' + agg.netPending.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('udharCustomerCountBadge').innerText = `${udharCustomers.length} Grahak`;
+
+      const q = (document.getElementById('udharSearchInput')?.value || '').toLowerCase().trim();
+      const tbody = document.getElementById('udharCustomerTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const filtered = udharCustomers.filter(c => {
+        const st = getUdharStatsForCustomer(c.id);
+        if (activeUdharFilter === 'PENDING' && st.balance <= 0) return false;
+        if (activeUdharFilter === 'SETTLED' && st.balance !== 0) return false;
+        if (!q) return true;
+        return c.name.toLowerCase().includes(q) ||
+               (c.phone && c.phone.toLowerCase().includes(q)) ||
+               (c.address && c.address.toLowerCase().includes(q));
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-8 text-center text-slate-400 text-sm">
+              Koi grahak nahi mila. "+ Naya Grahak" button se naya khata kholein.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      filtered.forEach(c => {
+        const st = getUdharStatsForCustomer(c.id);
+        let badgeHtml = '';
+        if (st.balance > 0) {
+          badgeHtml = `<span class="px-2.5 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-lg">Lene Baki: ₹${st.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+        } else if (st.balance < 0) {
+          badgeHtml = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg">Dene Baki: ₹${Math.abs(st.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+        } else {
+          badgeHtml = `<span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg">Hisab Chukta (₹0)</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+        tr.innerHTML = `
+          <td class="py-3.5 px-4 font-bold text-slate-900">${esc(c.name)}</td>
+          <td class="py-3.5 px-4 text-slate-500 text-xs">${esc(c.phone || 'No phone')}${c.address ? ' • ' + esc(c.address) : ''}</td>
+          <td class="py-3.5 px-4 text-rose-600 font-bold">₹${st.gave.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3.5 px-4 text-emerald-600 font-bold">₹${st.got.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3.5 px-4">${badgeHtml}</td>
+          <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+            <button type="button" onclick="openUdharCustomerDetail('${c.id}')" class="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold rounded-lg">Khata Kholein</button>
+            <button type="button" onclick="sendUdharReminder('${c.id}')" class="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold rounded-lg">Reminder</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openNewUdharModal() {
+      document.getElementById('newUdharForm').reset();
+      document.getElementById('newUdharModal').classList.remove('hidden');
+    }
+    function closeNewUdharModal() {
+      document.getElementById('newUdharModal').classList.add('hidden');
+    }
+
+    function handleCreateUdharCustomer(e) {
+      e.preventDefault();
+      const name = document.getElementById('newUdharName').value.trim();
+      const phone = document.getElementById('newUdharPhone').value.trim();
+      const address = document.getElementById('newUdharAddress').value.trim();
+      const notes = document.getElementById('newUdharNotes').value.trim();
+      const initialGave = parseFloat(document.getElementById('newUdharInitialGave').value) || 0;
+
+      if (!name) return;
+      const newCust = {
+        id: genId(),
+        name,
+        phone,
+        address,
+        notes,
+        createdAt: Date.now()
+      };
+      udharCustomers.push(newCust);
+
+      if (initialGave > 0) {
+        udharEntries.unshift({
+          id: genId(),
+          customerId: newCust.id,
+          amount: roundMoney(initialGave),
+          type: 'GAVE',
+          date: Date.now(),
+          note: notes || 'Opening Udhar balance',
+          billNumber: 'OPEN-01'
+        });
+      }
+
+      saveData();
+      closeNewUdharModal();
+      renderUdharKhata();
+      renderDashboard();
+      showToast(`Grahak "${name}" ka Udhar Khata khul gaya!`);
+    }
+
+    function openUdharCustomerDetail(customerId) {
+      activeUdharCustomerId = customerId;
+      const c = udharCustomers.find(x => x.id === customerId);
+      if (!c) return;
+
+      document.getElementById('udharDetailName').innerText = c.name;
+      document.getElementById('udharDetailSubtitle').innerText = `${c.phone || 'No phone'}${c.address ? ' • 📍 ' + c.address : ''}`;
+
+      const st = getUdharStatsForCustomer(customerId);
+      const card = document.getElementById('udharDetailBalanceCard');
+      const label = document.getElementById('udharDetailStatusLabel');
+      const val = document.getElementById('udharDetailBalanceValue');
+
+      if (st.balance > 0) {
+        card.className = 'rounded-2xl p-5 border border-rose-200 bg-rose-50/70 text-center space-y-2';
+        label.className = 'text-xs font-bold uppercase tracking-wider text-rose-700';
+        label.innerText = 'Aapko Lena Hai (You Will Get)';
+        val.className = 'text-3xl font-extrabold text-rose-700';
+        val.innerText = `₹${st.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      } else if (st.balance < 0) {
+        card.className = 'rounded-2xl p-5 border border-emerald-200 bg-emerald-50/70 text-center space-y-2';
+        label.className = 'text-xs font-bold uppercase tracking-wider text-emerald-700';
+        label.innerText = 'Aapko Dena Hai (Advance Deposit)';
+        val.className = 'text-3xl font-extrabold text-emerald-700';
+        val.innerText = `₹${Math.abs(st.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      } else {
+        card.className = 'rounded-2xl p-5 border border-slate-200 bg-slate-100 text-center space-y-2';
+        label.className = 'text-xs font-bold uppercase tracking-wider text-slate-600';
+        label.innerText = 'Hisab Barabar (Settled)';
+        val.className = 'text-3xl font-extrabold text-slate-800';
+        val.innerText = '₹0.00';
+      }
+
+      document.getElementById('udharDetailTotalGave').innerText = `₹${st.gave.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('udharDetailTotalGot').innerText = `₹${st.got.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('udharDetailEntriesCount').innerText = String(st.count);
+
+      setUdharEntryType('GAVE');
+      renderUdharEntriesList(customerId);
+      document.getElementById('udharDetailModal').classList.remove('hidden');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function closeUdharDetailModal() {
+      document.getElementById('udharDetailModal').classList.add('hidden');
+    }
+
+    function setUdharEntryType(type) {
+      activeUdharEntryType = type;
+      const btnGave = document.getElementById('btnUdharTypeGave');
+      const btnGot = document.getElementById('btnUdharTypeGot');
+      const submitBtn = document.getElementById('udharEntrySubmitBtn');
+      if (type === 'GAVE') {
+        btnGave.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white';
+        btnGot.className = 'px-3 py-1 rounded-lg text-xs font-medium bg-white text-slate-700 border border-slate-300';
+        submitBtn.className = 'px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow transition';
+        submitBtn.innerText = '+ Record Udhar Diya (₹)';
+      } else {
+        btnGot.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white';
+        btnGave.className = 'px-3 py-1 rounded-lg text-xs font-medium bg-white text-slate-700 border border-slate-300';
+        submitBtn.className = 'px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow transition';
+        submitBtn.innerText = '+ Record Payment Mila (₹)';
+      }
+    }
+
+    function handleCreateUdharEntry(e) {
+      e.preventDefault();
+      if (!activeUdharCustomerId) return;
+      const amount = parseFloat(document.getElementById('udharEntryAmount').value);
+      if (!amount || amount <= 0) return;
+      const billNumber = document.getElementById('udharEntryBill').value.trim();
+      const note = document.getElementById('udharEntryNote').value.trim();
+
+      udharEntries.unshift({
+        id: genId(),
+        customerId: activeUdharCustomerId,
+        amount: roundMoney(amount),
+        type: activeUdharEntryType,
+        date: Date.now(),
+        note,
+        billNumber
+      });
+
+      document.getElementById('udharEntryForm').reset();
+      saveData();
+      openUdharCustomerDetail(activeUdharCustomerId);
+      renderUdharKhata();
+      renderDashboard();
+      showToast(
+        `${activeUdharEntryType === 'GAVE' ? 'Udhar Diya' : 'Payment Mila'} ₹${amount.toLocaleString('en-IN')} recorded!`
+      );
+    }
+
+    function renderUdharEntriesList(customerId) {
+      const container = document.getElementById('udharEntriesList');
+      const list = udharEntries
+        .filter(e => e.customerId === customerId)
+        .sort((a, b) => b.date - a.date);
+
+      if (list.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">Abhi tak koi entry nahi hai.</p>`;
+        return;
+      }
+
+      container.innerHTML = list.map(entry => {
+        const isGave = entry.type === 'GAVE';
+        const dStr = new Date(entry.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const meta = [entry.billNumber ? `Bill #${esc(entry.billNumber)}` : '', esc(entry.note || '')].filter(Boolean).join(' • ');
+        return `
+          <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <span class="px-2 py-1 rounded-lg text-[11px] font-bold ${isGave ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                ${isGave ? 'Udhar Diya' : 'Payment Mila'}
+              </span>
+              <div>
+                <div class="text-xs font-semibold text-slate-800">${meta || (isGave ? 'Credit given' : 'Payment received')}</div>
+                <div class="text-[11px] text-slate-400">${dStr}</div>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2.5">
+              <span class="text-sm font-extrabold ${isGave ? 'text-rose-600' : 'text-emerald-600'}">
+                ${isGave ? '-' : '+'}₹${Number(entry.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+              <button type="button" onclick="deleteUdharEntry('${entry.id}')" class="text-slate-300 hover:text-rose-600 p-1">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function deleteUdharEntry(entryId) {
+      const entry = udharEntries.find(e => e.id === entryId);
+      if (!entry) return;
+      openConfirmModal({
+        title: 'Entry Delete Karein?',
+        message: `Kya aap ₹${entry.amount.toLocaleString('en-IN')} ki ye entry delete karna chahte hain?`,
+        confirmText: 'Haan, Delete',
+        danger: true,
+        onConfirm: () => {
+          markDeleted('udhar_entries', entryId);
+          udharEntries = udharEntries.filter(e => e.id !== entryId);
+          saveData();
+          if (activeUdharCustomerId) openUdharCustomerDetail(activeUdharCustomerId);
+          renderUdharKhata();
+          renderDashboard();
+          showToast('Udhar entry deleted.', 'info');
+        }
+      });
+    }
+
+    function deleteActiveUdharCustomer() {
+      const c = udharCustomers.find(x => x.id === activeUdharCustomerId);
+      if (!c) return;
+      openConfirmModal({
+        title: 'Grahak Delete Karein?',
+        message: `Kya aap '${c.name}' aur unka poora Udhar hisab kitab delete karna chahte hain?`,
+        confirmText: 'Haan, Delete Karein',
+        danger: true,
+        onConfirm: () => {
+          markDeleted('udhar_customers', c.id);
+          udharCustomers = udharCustomers.filter(x => x.id !== c.id);
+          udharEntries = udharEntries.filter(e => e.customerId !== c.id);
+          saveData();
+          closeUdharDetailModal();
+          renderUdharKhata();
+          renderDashboard();
+          showToast(`Grahak "${c.name}" deleted.`, 'info');
+        }
+      });
+    }
+
+    function sendUdharReminder(customerId) {
+      const c = udharCustomers.find(x => x.id === customerId);
+      if (!c) return;
+      const st = getUdharStatsForCustomer(customerId);
+      const msg = st.balance > 0
+        ? `Namaste ${c.name} ji, aapka Udhar Khata me baki hisab ₹${st.balance.toLocaleString('en-IN')} hai. Kripya samay par bhugtan karein. Dhanyawad - FinTrack Khata`
+        : `Namaste ${c.name} ji, aapka Udhar Khata hisab barabar (₹0 baki) hai. Dhanyawad - FinTrack Khata`;
+      copyTextWithFallback(msg);
+      showToast(`Reminder copied: "${msg}"`, 'success');
+    }
+
+    function sendActiveUdharReminder() {
+      if (activeUdharCustomerId) sendUdharReminder(activeUdharCustomerId);
+    }
+
+    function copyTextWithFallback(text) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {
+        // Fallback no-op
+      }
+    }
+
+    // =========================================================================
+    // DASHBOARD & INTEREST LOANS RENDERERS
+    // =========================================================================
+    function renderDashboard() {
+      let totalPrinc = 0;
+      let remainingPrinc = 0;
+      let totalAccrued = 0;
+      let outstandingInt = 0;
+      let totalIntPaid = 0;
+      let totalPrincRepaid = 0;
+
+      customers.forEach(c => {
+        const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
+        const outI = Math.max(0, (c.total_accrued_interest || 0) - (c.total_interest_paid || 0));
+        totalPrinc += Number(c.principal_amount);
+        remainingPrinc += remP;
+        totalAccrued += Number(c.total_accrued_interest || 0);
+        outstandingInt += outI;
+        totalIntPaid += Number(c.total_interest_paid || 0);
+        totalPrincRepaid += Number(c.total_principal_repaid || 0);
+      });
+
+      const udharAgg = getAggregateUdharStats();
+      const totalLiquidBal = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+      const totalNetWorth = totalLiquidBal + remainingPrinc + outstandingInt + udharAgg.netPending;
+
+      document.getElementById('statWebNetWorth').innerText = '₹' + totalNetWorth.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statDashUdharPending').innerText = '₹' + udharAgg.netPending.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statDashUdharCount').innerText = `${udharCustomers.length} Grahak active`;
+
+      document.getElementById('statRemainingPrincipal').innerText = '₹' + remainingPrinc.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statTotalPrincipal').innerText = 'Lent: ₹' + totalPrinc.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statOutstandingInterest').innerText = '₹' + outstandingInt.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statTotalAccrued').innerText = 'Accrued: ₹' + totalAccrued.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statInterestPaid').innerText = '₹' + totalIntPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('statPrincipalRepaid').innerText = '₹' + totalPrincRepaid.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+      const tbody = document.getElementById('dashboardCustomerTable');
+      tbody.innerHTML = '';
+
+      customers.forEach(c => {
+        const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
+        const outI = Math.max(0, (c.total_accrued_interest || 0) - (c.total_interest_paid || 0));
+        const totalDue = remP + outI;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition';
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-bold text-slate-900">${esc(c.name)}</td>
+          <td class="py-3 px-4">₹${c.principal_amount.toLocaleString('en-IN')}</td>
+          <td class="py-3 px-4 font-semibold text-emerald-700">${c.monthly_interest_rate}%/mo</td>
+          <td class="py-3 px-4 font-semibold text-slate-800">₹${remP.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3 px-4 font-bold text-indigo-600">₹${outI.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3 px-4 font-bold text-emerald-700">₹${totalDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+            <button type="button" onclick="openCustomerDetail('${c.id}')" class="px-3 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold rounded-lg text-xs">Ledger / Pay</button>
+            <button type="button" onclick="startCalcForCustomer('${c.id}')" class="px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold rounded-lg text-xs">Calc</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function renderCustomerList() {
+      const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+      const container = document.getElementById('customerCardsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const filtered = customers.filter(c => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q)));
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400">
+            No matching customer loans found.
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(c => {
+        const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
+        const outI = Math.max(0, (c.total_accrued_interest || 0) - (c.total_interest_paid || 0));
+        const totalDue = remP + outI;
+
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 hover:shadow-md transition';
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="font-bold text-lg text-slate-900">${esc(c.name)}</h3>
+              <p class="text-xs text-slate-500">${esc(c.phone || 'No phone')} • Since ${c.loan_start_date}</p>
+            </div>
+            <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-lg text-xs">${c.monthly_interest_rate}% / mo</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl text-center">
+            <div>
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Principal</span>
+              <div class="text-xs font-bold text-slate-800">₹${remP.toLocaleString('en-IN')}</div>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Interest</span>
+              <div class="text-xs font-bold text-indigo-600">₹${outI.toLocaleString('en-IN')}</div>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Due</span>
+              <div class="text-xs font-bold text-emerald-700">₹${totalDue.toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 pt-1">
+            <button type="button" onclick="startCalcForCustomer('${c.id}')" class="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1">
+              <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+              <span>Calc Interest</span>
+            </button>
+            <button type="button" onclick="openCustomerDetail('${c.id}')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1">
+              <i data-lucide="history" class="w-3.5 h-3.5"></i>
+              <span>Open Ledger</span>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function openNewCustomerModal() {
+      document.getElementById('newCustomerForm').reset();
+      document.getElementById('newCustStartDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('newCustomerModal').classList.remove('hidden');
+    }
+    function closeNewCustomerModal() {
+      document.getElementById('newCustomerModal').classList.add('hidden');
+    }
+
+    function handleCreateCustomer(e) {
+      e.preventDefault();
+      const newCust = {
+        id: genId(),
+        name: document.getElementById('newCustName').value.trim(),
+        phone: document.getElementById('newCustPhone').value.trim(),
+        principal_amount: roundMoney(parseFloat(document.getElementById('newCustPrincipal').value)),
+        monthly_interest_rate: parseFloat(document.getElementById('newCustRate').value) || 5.0,
+        loan_start_date: document.getElementById('newCustStartDate').value,
+        total_accrued_interest: 0.0,
+        total_interest_paid: 0.0,
+        total_principal_repaid: 0.0,
+        notes: document.getElementById('newCustNotes').value.trim()
+      };
+      customers.push(newCust);
+      saveData();
+      closeNewCustomerModal();
+      renderDashboard();
+      renderCustomerList();
+      showToast(`Customer loan for ${newCust.name} created!`);
+    }
+
+    function openCustomerDetail(customerId) {
+      activeCustomerId = customerId;
+      const c = customers.find(x => x.id === customerId);
+      if (!c) return;
+
+      const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
+      const outI = Math.max(0, (c.total_accrued_interest || 0) - (c.total_interest_paid || 0));
+
+      document.getElementById('detailCustomerName').innerText = c.name;
+      document.getElementById('detailCustomerSubtitle').innerText = `${c.phone || 'No phone'} • Started: ${c.loan_start_date}`;
+      document.getElementById('detailPrincipalOriginal').innerText = `Orig: ₹${c.principal_amount.toLocaleString('en-IN')}`;
+      document.getElementById('detailPrincipalRemaining').innerText = `₹${remP.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('detailPrincipalRepaid').innerText = `₹${(c.total_principal_repaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+      document.getElementById('detailInterestRate').innerText = `${c.monthly_interest_rate}% / mo`;
+      document.getElementById('detailInterestOutstanding').innerText = `₹${outI.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('detailInterestAccrued').innerText = `₹${(c.total_accrued_interest || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('detailInterestPaid').innerText = `₹${(c.total_interest_paid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+      renderDetailAccruals(customerId);
+      renderDetailPayments(customerId);
+
+      document.getElementById('customerDetailModal').classList.remove('hidden');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function closeCustomerDetailModal() {
+      document.getElementById('customerDetailModal').classList.add('hidden');
+    }
+
+    function deleteActiveLoanCustomer() {
+      const c = customers.find(x => x.id === activeCustomerId);
+      if (!c) return;
+      openConfirmModal({
+        title: 'Delete Customer Loan?',
+        message: `Delete "${c.name}" and all associated interest accruals and repayment records?`,
+        confirmText: 'Delete Loan',
+        danger: true,
+        onConfirm: () => {
+          markDeleted('khata_customers', c.id);
+          customers = customers.filter(x => x.id !== c.id);
+          accruals = accruals.filter(a => a.customer_id !== c.id);
+          payments = payments.filter(p => p.customer_id !== c.id);
+          saveData();
+          closeCustomerDetailModal();
+          renderDashboard();
+          renderCustomerList();
+          showToast(`Deleted loan ledger for ${c.name}.`, 'info');
+        }
+      });
+    }
+
+    function switchDetailTab(t) {
+      if (t === 'accruals') {
+        document.getElementById('dtab-accruals').className = 'pb-2 text-sm font-bold text-emerald-700 border-b-2 border-emerald-700';
+        document.getElementById('dtab-payments').className = 'pb-2 text-sm font-medium text-slate-500 hover:text-slate-800';
+        document.getElementById('detailAccrualsList').classList.remove('hidden');
+        document.getElementById('detailPaymentsList').classList.add('hidden');
+      } else {
+        document.getElementById('dtab-payments').className = 'pb-2 text-sm font-bold text-emerald-700 border-b-2 border-emerald-700';
+        document.getElementById('dtab-accruals').className = 'pb-2 text-sm font-medium text-slate-500 hover:text-slate-800';
+        document.getElementById('detailPaymentsList').classList.remove('hidden');
+        document.getElementById('detailAccrualsList').classList.add('hidden');
+      }
+    }
+
+    function renderDetailAccruals(customerId) {
+      const list = accruals.filter(a => a.customer_id === customerId);
+      const container = document.getElementById('detailAccrualsList');
+      if (list.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No interest accruals recorded yet.</p>`;
+        return;
+      }
+      container.innerHTML = list.map(a => `
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+          <div>
+            <div class="text-xs font-bold text-slate-900">${esc(a.start_date)} → ${esc(a.end_date)}</div>
+            <p class="text-[11px] text-slate-500">${esc(a.calculation_breakdown || 'Simple Interest accrued')}</p>
+          </div>
+          <div class="text-sm font-bold text-indigo-700">+₹${Number(a.calculated_interest).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderDetailPayments(customerId) {
+      const list = payments.filter(p => p.customer_id === customerId);
+      const container = document.getElementById('detailPaymentsList');
+      if (list.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No payments recorded yet.</p>`;
+        return;
+      }
+      container.innerHTML = list.map(p => {
+        const isInt = p.payment_type === 'INTEREST_PAYMENT';
+        return `
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+            <div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isInt ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
+                ${isInt ? 'Interest Payment' : 'Principal Repayment'}
+              </span>
+              <p class="text-[11px] text-slate-500 mt-1">${new Date(p.payment_date).toLocaleDateString('en-IN')} • Mode: ${esc(p.payment_mode)} ${p.notes ? '• ' + esc(p.notes) : ''}</p>
+            </div>
+            <div class="text-sm font-bold text-emerald-700">-₹${Number(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openPaymentModal(type) {
+      activePaymentType = type;
+      const c = customers.find(x => x.id === activeCustomerId);
+      if (!c) return;
+
+      const title = type === 'INTEREST_PAYMENT' ? 'Record Interest Payment' : 'Record Principal Repayment';
+      document.getElementById('paymentModalTitle').innerText = title;
+
+      const notice = document.getElementById('paymentNoticeBox');
+      const amountInput = document.getElementById('paymentAmountInput');
+      if (type === 'INTEREST_PAYMENT') {
+        const outI = roundMoney(Math.max(0, (c.total_accrued_interest || 0) - (c.total_interest_paid || 0)));
+        notice.className = 'p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs';
+        notice.innerHTML = `<strong>Interest Payment:</strong> Reduces outstanding interest only (Currently due: <strong>₹${outI.toFixed(2)}</strong>). Principal loan remains untouched.`;
+        amountInput.max = String(outI);
+      } else {
+        const remP = roundMoney(Math.max(0, c.principal_amount - (c.total_principal_repaid || 0)));
+        notice.className = 'p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs';
+        notice.innerHTML = `<strong>Principal Repayment:</strong> Reduces remaining principal only (Current balance: <strong>₹${remP.toFixed(2)}</strong>). Accrued interest is untouched.`;
+        amountInput.max = String(remP);
+      }
+
+      document.getElementById('paymentForm').reset();
+      document.getElementById('paymentModal').classList.remove('hidden');
+    }
+
+    function closePaymentModal() {
+      document.getElementById('paymentModal').classList.add('hidden');
+    }
+
+    function handleRecordPayment(e) {
+      e.preventDefault();
+      const amount = roundMoney(parseFloat(document.getElementById('paymentAmountInput').value));
+      if (!amount || amount <= 0) return;
+
+      const c = customers.find(x => x.id === activeCustomerId);
+      if (!c) return;
+
+      const remP = roundMoney(Math.max(0, c.principal_amount - (c.total_principal_repaid || 0)));
+      const outI = roundMoney(Math.max(0, (c.total_accrued_interest || 0) - (c.total_interest_paid || 0)));
+      const maxAllowed = activePaymentType === 'INTEREST_PAYMENT' ? outI : remP;
+
+      if (amount > maxAllowed + 0.005) {
+        const label = activePaymentType === 'INTEREST_PAYMENT' ? 'outstanding interest' : 'remaining principal';
+        showToast(`Amount exceeds ${label} (₹${maxAllowed.toFixed(2)})`, 'error');
+        return;
+      }
+
+      const newPay = {
+        id: genId(),
+        customer_id: activeCustomerId,
+        payment_type: activePaymentType,
+        amount: amount,
+        payment_date: new Date().toISOString(),
+        payment_mode: document.getElementById('paymentModeSelect').value,
+        notes: document.getElementById('paymentNotesInput').value.trim()
+      };
+
+      payments.push(newPay);
+
+      if (activePaymentType === 'INTEREST_PAYMENT') {
+        c.total_interest_paid = roundMoney((c.total_interest_paid || 0) + amount);
+      } else {
+        c.total_principal_repaid = roundMoney((c.total_principal_repaid || 0) + amount);
+      }
+
+      saveData();
+      closePaymentModal();
+      openCustomerDetail(activeCustomerId);
+      renderDashboard();
+      renderCustomerList();
+      showToast(`Payment of ₹${amount.toFixed(2)} recorded!`);
+    }
+
+    // =========================================================================
+    // SIMPLE INTEREST CALCULATOR ENGINE (Exact Anchor-Date Parity with Kotlin)
+    // =========================================================================
+    function parseYmd(ymd) {
+      const [y, m, d] = ymd.split('-').map(Number);
+      return { y, m, d };
+    }
+
+    function daysInMonth(year, month1Based) {
+      return new Date(Date.UTC(year, month1Based, 0)).getUTCDate();
+    }
+
+    // Matches Java LocalDate.plusMonths(n): clamps day to last day of target month without drifting future months
+    function addMonthsFromAnchor(ymd, monthsToAdd) {
+      const { y, m, d } = parseYmd(ymd);
+      const totalMonths = (y * 12 + (m - 1)) + monthsToAdd;
+      const targetYear = Math.floor(totalMonths / 12);
+      const targetMonth = (totalMonths % 12) + 1;
+      const clampedDay = Math.min(d, daysInMonth(targetYear, targetMonth));
+      const mm = String(targetMonth).padStart(2, '0');
+      const dd = String(clampedDay).padStart(2, '0');
+      return `${targetYear}-${mm}-${dd}`;
+    }
+
+    function diffDaysUtc(startYmd, endYmd) {
+      const a = parseYmd(startYmd);
+      const b = parseYmd(endYmd);
+      const msA = Date.UTC(a.y, a.m - 1, a.d);
+      const msB = Date.UTC(b.y, b.m - 1, b.d);
+      return Math.round((msB - msA) / 86400000);
+    }
+
+    function populateCalcCustomerOptions() {
+      const select = document.getElementById('calcCustomerSelect');
+      if (!select) return;
+      select.innerHTML = '<option value="">-- Choose a Customer Loan --</option>';
+      customers.forEach(c => {
+        const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = `${c.name} (Rem. Principal: ₹${remP.toLocaleString('en-IN')} @ ${c.monthly_interest_rate}%/mo)`;
+        select.appendChild(opt);
+      });
+      if (activeCustomerId && customers.some(c => c.id === activeCustomerId)) {
+        select.value = activeCustomerId;
+        onCalcCustomerChange();
+      } else if (customers.length > 0) {
+        select.value = customers[0].id;
+        onCalcCustomerChange();
+      }
+    }
+
+    function startCalcForCustomer(cid) {
+      activeCustomerId = cid;
+      switchTab('calculator');
+    }
+
+    function goToCalcForCustomer() {
+      closeCustomerDetailModal();
+      switchTab('calculator');
+    }
+
+    function onCalcCustomerChange() {
+      const cid = document.getElementById('calcCustomerSelect').value;
+      activeCustomerId = cid;
+      const c = customers.find(x => x.id === cid);
+      if (!c) return;
+
+      const remP = Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
+      document.getElementById('calcPrincipalDisplay').innerText = `₹${remP.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('calcOriginalPrincipalNote').innerText = `Original Loan: ₹${c.principal_amount.toLocaleString('en-IN')} • Repaid: ₹${(c.total_principal_repaid || 0).toLocaleString('en-IN')}`;
+      document.getElementById('calcCustomerRateDisplay').innerText = `${c.monthly_interest_rate}% / month`;
+      document.getElementById('calcMonthlyRate').value = c.monthly_interest_rate;
+
+      const startDefault = c.last_calculation_date || c.loan_start_date;
+      document.getElementById('calcStartDate').value = startDefault;
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('calcEndDate').value = todayStr > startDefault ? todayStr : addMonthsFromAnchor(startDefault, 1);
+
+      runPreviewCalculation();
+    }
+
+    function resetCalcForm() {
+      if (activeCustomerId) {
+        onCalcCustomerChange();
+      } else {
+        populateCalcCustomerOptions();
+      }
+      showToast('Calculator reset to customer defaults.', 'info');
+    }
+
+    function setCalcRate(r) {
+      document.getElementById('calcMonthlyRate').value = r;
+      runPreviewCalculation();
+    }
+
+    function runPreviewCalculation() {
+      const cid = document.getElementById('calcCustomerSelect').value;
+      const c = customers.find(x => x.id === cid);
+      if (!c) return null;
+
+      const sStr = document.getElementById('calcStartDate').value;
+      const eStr = document.getElementById('calcEndDate').value;
+      const rate = parseFloat(document.getElementById('calcMonthlyRate').value) || c.monthly_interest_rate;
+      const principalBasis = roundMoney(Math.max(0, c.principal_amount - (c.total_principal_repaid || 0)));
+
+      if (!sStr || !eStr) return null;
+
+      if (eStr <= sStr) {
+        document.getElementById('previewBreakdownText').innerHTML = `<span class="text-red-600 font-bold">End date must be strictly after start date.</span>`;
+        document.getElementById('previewTotalInterest').innerText = '₹0.00';
+        document.getElementById('recordInterestBtn').disabled = true;
+        return null;
+      }
+
+      // Overlap check with existing customer accruals
+      const custAccruals = accruals.filter(a => a.customer_id === cid);
+      const overlapping = custAccruals.find(a => {
+        const maxStart = sStr > a.start_date ? sStr : a.start_date;
+        const minEnd = eStr < a.end_date ? eStr : a.end_date;
+        return maxStart < minEnd;
+      });
+
+      const warning = document.getElementById('overlapWarning');
+      if (overlapping) {
+        warning.classList.remove('hidden');
+        document.getElementById('overlapWarningText').innerText = `Period overlaps with recorded interest from ${overlapping.start_date} to ${overlapping.end_date}. Duplicate recording is blocked.`;
+        document.getElementById('recordInterestBtn').disabled = true;
+      } else {
+        warning.classList.add('hidden');
+        document.getElementById('recordInterestBtn').disabled = false;
+      }
+
+      // Count complete monthly periods anchored from sStr (no Feb drift)
+      let completedMonths = 0;
+      while (addMonthsFromAnchor(sStr, completedMonths + 1) <= eStr) {
+        completedMonths++;
+      }
+      const currentAnchor = addMonthsFromAnchor(sStr, completedMonths);
+      const nextAnchor = addMonthsFromAnchor(sStr, completedMonths + 1);
+
+      const partialDays = diffDaysUtc(currentAnchor, eStr);
+      const daysInPartialMonth = Math.max(28, diffDaysUtc(currentAnchor, nextAnchor));
+
+      const monthlyInterest = (principalBasis * rate) / 100.0;
+      const fullMonthsInterest = completedMonths * monthlyInterest;
+      const partialInterest = partialDays > 0 ? (monthlyInterest * (partialDays / daysInPartialMonth)) : 0.0;
+      const totalAccrued = roundMoney(fullMonthsInterest + partialInterest);
+
+      document.getElementById('previewPrincipalBasis').innerText = principalBasis.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('previewTotalInterest').innerText = `₹${totalAccrued.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+      document.getElementById('previewBreakdownText').innerHTML = `
+        <div class="flex justify-between"><span>Remaining Principal basis:</span><strong class="text-slate-900">₹${principalBasis.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></div>
+        <div class="flex justify-between"><span>Monthly rate:</span><strong>${rate.toFixed(2)}% (₹${monthlyInterest.toFixed(2)} / mo)</strong></div>
+        <div class="flex justify-between"><span>Completed monthly periods:</span><strong>${completedMonths} month(s) = ₹${fullMonthsInterest.toFixed(2)}</strong></div>
+        <div class="flex justify-between"><span>Partial period:</span><strong>${partialDays > 0 ? `${partialDays} / ${daysInPartialMonth} days = ₹${partialInterest.toFixed(2)}` : 'None (exact full period)'}</strong></div>
+      `;
+
+      return {
+        cid,
+        sStr,
+        eStr,
+        rate,
+        principalBasis,
+        completedMonths,
+        partialDays,
+        daysInPartialMonth,
+        monthlyInterest: roundMoney(monthlyInterest),
+        totalAccrued
+      };
+    }
+
+    function calculateInterestPreview(e) {
+      e.preventDefault();
+      const calc = runPreviewCalculation();
+      if (!calc) return;
+      const c = customers.find(x => x.id === calc.cid);
+      if (!c) return;
+
+      openConfirmModal({
+        title: 'Confirm Interest Accrual',
+        message: `Record ₹${calc.totalAccrued.toFixed(2)} simple interest for ${c.name} (${calc.sStr} to ${calc.eStr})?\n\nPrincipal basis remains fixed at ₹${calc.principalBasis.toLocaleString('en-IN')}.`,
+        confirmText: 'Record Interest',
+        onConfirm: () => {
+          const newAccrual = {
+            id: genId(),
+            customer_id: calc.cid,
+            start_date: calc.sStr,
+            end_date: calc.eStr,
+            interest_rate: calc.rate,
+            principal_basis: calc.principalBasis,
+            completed_months: calc.completedMonths,
+            partial_days: calc.partialDays,
+            days_in_partial_month: calc.daysInPartialMonth,
+            calculated_interest: calc.totalAccrued,
+            calculation_breakdown: `${calc.sStr} to ${calc.eStr}: ${calc.completedMonths}m + ${calc.partialDays}/${calc.daysInPartialMonth}d @ ${calc.rate}% on ₹${calc.principalBasis} = ₹${calc.totalAccrued.toFixed(2)}`
+          };
+
+          accruals.push(newAccrual);
+          c.total_accrued_interest = roundMoney((c.total_accrued_interest || 0) + calc.totalAccrued);
+          c.last_calculation_date = calc.eStr;
+
+          saveData();
+          showToast(`Recorded ₹${calc.totalAccrued.toFixed(2)} interest for ${c.name}!`);
+          openCustomerDetail(calc.cid);
+          renderDashboard();
+          renderCustomerList();
+        }
+      });
+    }
+
+    // =========================================================================
+    // PERSONAL FINANCE: ACCOUNTS, TRANSACTIONS, BUDGETS & GOALS
+    // =========================================================================
+    function renderAccounts() {
+      const grid = document.getElementById('accountsGrid');
+      const totalBalanceEl = document.getElementById('statWebTotalAccountBalance');
+      if (!grid) return;
+
+      const totalBal = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
+      if (totalBalanceEl) {
+        totalBalanceEl.innerText = '₹' + totalBal.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      }
+
+      if (accounts.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-2">
+            <i data-lucide="landmark" class="w-10 h-10 text-slate-400 mx-auto"></i>
+            <p class="font-bold text-slate-700">No accounts registered</p>
+            <p class="text-xs text-slate-500">Tap 'Add Account' to track bank accounts or cash reserves</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = accounts.map(a => `
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <i data-lucide="${a.type === 'CASH' ? 'banknote' : a.type === 'WALLET' ? 'wallet' : 'landmark'}" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-900">${esc(a.name)}</h4>
+                <p class="text-xs text-slate-500">${esc(a.type)} ${a.accountNumber ? '• ' + esc(a.accountNumber) : ''}</p>
+              </div>
+            </div>
+            <button type="button" onclick="deleteAccount('${a.id}')" class="text-slate-400 hover:text-red-600 p-1">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
+            <span class="text-xs text-slate-400">Current Balance</span>
+            <span class="text-xl font-bold ${a.balance >= 0 ? 'text-slate-900' : 'text-red-600'}">
+              ₹${Number(a.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openNewAccountModal() {
+      document.getElementById('newAccountForm').reset();
+      document.getElementById('newAccountModal').classList.remove('hidden');
+    }
+    function closeNewAccountModal() {
+      document.getElementById('newAccountModal').classList.add('hidden');
+    }
+    function handleCreateAccount(e) {
+      e.preventDefault();
+      const name = document.getElementById('newAccName').value.trim();
+      const type = document.getElementById('newAccType').value;
+      const balance = roundMoney(parseFloat(document.getElementById('newAccBalance').value) || 0);
+      const accNum = document.getElementById('newAccNumber').value.trim();
+
+      accounts.push({
+        id: genId(),
+        name,
+        type,
+        balance,
+        accountNumber: accNum
+      });
+      saveData();
+      closeNewAccountModal();
+      renderAccounts();
+      renderDashboard();
+      showToast(`Account "${name}" created!`);
+    }
+
+    function deleteAccount(id) {
+      const acc = accounts.find(a => a.id === id);
+      if (!acc) return;
+      openConfirmModal({
+        title: 'Delete Account?',
+        message: `Delete "${acc.name}" and its transactions?`,
+        confirmText: 'Delete Account',
+        danger: true,
+        onConfirm: () => {
+          markDeleted('accounts', id);
+          accounts = accounts.filter(a => a.id !== id);
+          transactions = transactions
+            .filter(t => t.accountId !== id)
+            .map(t => t.targetAccountId === id ? { ...t, targetAccountId: null } : t);
+          saveData();
+          renderAccounts();
+          renderTransactions();
+          renderDashboard();
+          showToast(`Account "${acc.name}" deleted.`, 'info');
+        }
+      });
+    }
+
+    function renderTransactions() {
+      const container = document.getElementById('transactionsList');
+      if (!container) return;
+
+      const accMap = {};
+      accounts.forEach(a => { accMap[a.id] = a.name; });
+
+      const filtered = activeTxFilter ? transactions.filter(t => t.type === activeTxFilter) : transactions;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-slate-400 space-y-2">
+            <i data-lucide="receipt" class="w-10 h-10 mx-auto"></i>
+            <p class="font-bold text-slate-600">No transactions recorded</p>
+            <p class="text-xs text-slate-400">Add an expense, income, or transfer entry to track history</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(t => {
+        const isIncome = t.type === 'INCOME';
+        const isTransfer = t.type === 'TRANSFER';
+        const sign = isIncome ? '+' : isTransfer ? '⇄ ' : '-';
+        const color = isIncome ? 'text-emerald-700' : isTransfer ? 'text-blue-600' : 'text-red-600';
+        const dateStr = new Date(t.dateTimestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const accName = accMap[t.accountId] || 'Account';
+        const targetName = isTransfer && t.targetAccountId && accMap[t.targetAccountId] ? ` → ${accMap[t.targetAccountId]}` : '';
+
+        return `
+          <div class="p-4 flex items-center justify-between hover:bg-slate-50 transition">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-full ${isIncome ? 'bg-emerald-100 text-emerald-700' : isTransfer ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600'} flex items-center justify-center">
+                <i data-lucide="${isIncome ? 'arrow-down-left' : isTransfer ? 'arrow-left-right' : 'arrow-up-right'}" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h5 class="text-sm font-bold text-slate-900">${esc(t.title)}</h5>
+                <p class="text-xs text-slate-500">${esc(t.category)} • <span class="font-medium text-slate-700">${esc(accName + targetName)}</span> • ${dateStr}</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-base font-bold ${color}">${sign}₹${Number(t.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <button type="button" onclick="deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-600 p-1">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterTransactions(type) {
+      activeTxFilter = type;
+      ['All', 'Income', 'Expense', 'Transfer'].forEach(m => {
+        const btn = document.getElementById('txFilter' + m);
+        if (btn) {
+          const match = (type === null && m === 'All') || (type === m.toUpperCase());
+          btn.className = match
+            ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 text-slate-800'
+            : 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100';
+        }
+      });
+      renderTransactions();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function openNewTransactionModal() {
+      if (accounts.length === 0) {
+        showToast('Please create an account first before adding transactions.', 'error');
+        return;
+      }
+      document.getElementById('newTransactionForm').reset();
+      const opts = accounts.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (₹${Number(a.balance).toLocaleString('en-IN')})</option>`).join('');
+      document.getElementById('newTxAccountSelect').innerHTML = opts;
+      document.getElementById('newTxTargetAccountSelect').innerHTML = opts;
+      if (accounts.length > 1) {
+        document.getElementById('newTxTargetAccountSelect').selectedIndex = 1;
+      }
+      setTxModalType('EXPENSE');
+      document.getElementById('newTransactionModal').classList.remove('hidden');
+    }
+
+    function closeNewTransactionModal() {
+      document.getElementById('newTransactionModal').classList.add('hidden');
+    }
+
+    function setTxModalType(type) {
+      modalTxType = type;
+      document.getElementById('btnTxTypeExpense').className = type === 'EXPENSE' ? 'py-2 rounded-xl text-xs font-bold bg-red-600 text-white' : 'py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700';
+      document.getElementById('btnTxTypeIncome').className = type === 'INCOME' ? 'py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white' : 'py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700';
+      document.getElementById('btnTxTypeTransfer').className = type === 'TRANSFER' ? 'py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white' : 'py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700';
+
+      const targetWrap = document.getElementById('txTargetAccountWrap');
+      const srcLabel = document.getElementById('txSourceAccountLabel');
+      if (type === 'TRANSFER') {
+        targetWrap.classList.remove('hidden');
+        srcLabel.innerText = 'From Source Account';
+        document.getElementById('newTxCategory').value = 'Transfer';
+      } else {
+        targetWrap.classList.add('hidden');
+        srcLabel.innerText = 'Account';
+        if (document.getElementById('newTxCategory').value === 'Transfer') {
+          document.getElementById('newTxCategory').value = 'General';
+        }
+      }
+    }
+
+    function handleCreateTransaction(e) {
+      e.preventDefault();
+      const title = document.getElementById('newTxTitle').value.trim();
+      const amount = roundMoney(parseFloat(document.getElementById('newTxAmount').value) || 0);
+      const accountId = document.getElementById('newTxAccountSelect').value;
+      const targetAccountId = modalTxType === 'TRANSFER' ? document.getElementById('newTxTargetAccountSelect').value : null;
+      const category = document.getElementById('newTxCategory').value.trim() || 'General';
+      const note = document.getElementById('newTxNote').value.trim();
+
+      if (amount <= 0) return;
+      if (modalTxType === 'TRANSFER') {
+        if (!targetAccountId || targetAccountId === accountId) {
+          showToast('Source and destination accounts must be different for a transfer.', 'error');
+          return;
+        }
+      }
+
+      const acc = accounts.find(a => a.id === accountId);
+      if (acc) {
+        if (modalTxType === 'INCOME') acc.balance = roundMoney(acc.balance + amount);
+        else if (modalTxType === 'EXPENSE') acc.balance = roundMoney(acc.balance - amount);
+        else if (modalTxType === 'TRANSFER') {
+          acc.balance = roundMoney(acc.balance - amount);
+          const targetAcc = accounts.find(a => a.id === targetAccountId);
+          if (targetAcc) targetAcc.balance = roundMoney(targetAcc.balance + amount);
+        }
+      }
+
+      transactions.unshift({
+        id: genId(),
+        accountId,
+        targetAccountId,
+        title,
+        amount,
+        type: modalTxType,
+        category,
+        note,
+        dateTimestamp: Date.now()
+      });
+
+      saveData();
+      closeNewTransactionModal();
+      renderTransactions();
+      renderAccounts();
+      renderDashboard();
+      showToast(`Recorded ${modalTxType.toLowerCase()} of ₹${amount.toLocaleString('en-IN')}!`);
+    }
+
+    function deleteTransaction(id) {
+      const tx = transactions.find(t => t.id === id);
+      if (!tx) return;
+      openConfirmModal({
+        title: 'Delete Transaction?',
+        message: `Delete "${tx.title}" (₹${tx.amount.toLocaleString('en-IN')}) and revert account balance?`,
+        confirmText: 'Delete',
+        danger: true,
+        onConfirm: () => {
+          markDeleted('transactions', id);
+          const acc = accounts.find(a => a.id === tx.accountId);
+          if (acc) {
+            if (tx.type === 'INCOME') acc.balance = roundMoney(acc.balance - tx.amount);
+            else if (tx.type === 'EXPENSE') acc.balance = roundMoney(acc.balance + tx.amount);
+            else if (tx.type === 'TRANSFER') {
+              acc.balance = roundMoney(acc.balance + tx.amount);
+              const targetAcc = accounts.find(a => a.id === tx.targetAccountId);
+              if (targetAcc) targetAcc.balance = roundMoney(targetAcc.balance - tx.amount);
+            }
+          }
+          transactions = transactions.filter(t => t.id !== id);
+          saveData();
+          renderTransactions();
+          renderAccounts();
+          renderDashboard();
+          showToast('Transaction deleted and balance adjusted.', 'info');
+        }
+      });
+    }
+
+    function exportTransactionsCsv() {
+      exportFullAuditCsv();
+    }
+
+    function exportFullAuditCsv() {
+      const unified = getUnifiedHistoryItems('ALL');
+      let csv = 'Domain,ID,Date,Title,Details,Badge,Credit_Debit,Amount_INR\n';
+      unified.forEach(item => {
+        const d = new Date(item.date).toISOString();
+        csv += [
+          item.domain,
+          item.id,
+          d,
+          item.title,
+          item.subtitle,
+          item.badgeText,
+          item.isCredit ? 'CREDIT (+)' : 'DEBIT (-)',
+          item.amount
+        ].map(csvCell).join(',') + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `FinTrack_Complete_Audit_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Audit CSV downloaded!');
+    }
+
+    // Budgets & Goals
+    function renderBudgetsAndGoals() {
+      const bList = document.getElementById('budgetsList');
+      const gList = document.getElementById('goalsList');
+      if (!bList || !gList) return;
+
+      const spentMap = {};
+      transactions.filter(t => t.type === 'EXPENSE').forEach(t => {
+        spentMap[t.category] = (spentMap[t.category] || 0) + Number(t.amount);
+      });
+
+      if (budgets.length === 0) {
+        bList.innerHTML = `<p class="text-xs text-slate-400 p-4 bg-slate-50 rounded-xl text-center">No category budgets yet.</p>`;
+      } else {
+        bList.innerHTML = budgets.map(b => {
+          const spent = spentMap[b.category] || 0;
+          const pct = Math.min(100, Math.round((spent / b.monthlyLimit) * 100));
+          const isOver = spent > b.monthlyLimit;
+          const barColor = isOver ? 'bg-red-600' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-600';
+
+          return `
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-slate-900">${esc(b.category)}</span>
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs ${isOver ? 'text-red-600 font-bold' : 'text-slate-500'}">
+                    ₹${spent.toLocaleString('en-IN')} / ₹${b.monthlyLimit.toLocaleString('en-IN')} (${pct}%)
+                  </span>
+                  <button type="button" onclick="deleteBudget('${b.id}')" class="text-slate-300 hover:text-red-600">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="${barColor} h-full rounded-full transition-all" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      if (goals.length === 0) {
+        gList.innerHTML = `<p class="text-xs text-slate-400 p-4 bg-slate-50 rounded-xl text-center">No savings goals set.</p>`;
+      } else {
+        gList.innerHTML = goals.map(g => {
+          const pct = Math.min(100, Math.round(((g.currentAmount || 0) / g.targetAmount) * 100));
+          return `
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h5 class="font-bold text-sm text-slate-900">${esc(g.name)}</h5>
+                  <p class="text-xs text-slate-500">Target in ${g.deadlineDays || 90} days</p>
+                </div>
+                <button type="button" onclick="deleteGoal('${g.id}')" class="text-slate-300 hover:text-red-600">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="bg-indigo-600 h-full rounded-full transition-all" style="width: ${pct}%"></div>
+              </div>
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-xs font-bold text-slate-700">₹${(g.currentAmount || 0).toLocaleString('en-IN')} of ₹${g.targetAmount.toLocaleString('en-IN')} (${pct}%)</span>
+                <button type="button" onclick="openContributeModal('${g.id}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition">
+                  + Contribute
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function openNewBudgetModal() {
+      document.getElementById('newBudgetForm').reset();
+      document.getElementById('newBudgetModal').classList.remove('hidden');
+    }
+    function closeNewBudgetModal() { document.getElementById('newBudgetModal').classList.add('hidden'); }
+    function handleCreateBudget(e) {
+      e.preventDefault();
+      const cat = document.getElementById('newBgtCategory').value.trim();
+      const limit = roundMoney(parseFloat(document.getElementById('newBgtLimit').value) || 0);
+      budgets.push({ id: genId(), category: cat, monthlyLimit: limit });
+      saveData();
+      closeNewBudgetModal();
+      renderBudgetsAndGoals();
+      showToast(`Budget for "${cat}" added!`);
+    }
+    function deleteBudget(id) {
+      markDeleted('budgets', id);
+      budgets = budgets.filter(b => b.id !== id);
+      saveData();
+      renderBudgetsAndGoals();
+      showToast('Budget removed.', 'info');
+    }
+
+    function openNewGoalModal() {
+      document.getElementById('newGoalForm').reset();
+      document.getElementById('newGoalModal').classList.remove('hidden');
+    }
+    function closeNewGoalModal() { document.getElementById('newGoalModal').classList.add('hidden'); }
+    function handleCreateGoal(e) {
+      e.preventDefault();
+      const name = document.getElementById('newGoalName').value.trim();
+      const target = roundMoney(parseFloat(document.getElementById('newGoalTarget').value) || 0);
+      const current = roundMoney(parseFloat(document.getElementById('newGoalCurrent').value) || 0);
+      const days = parseInt(document.getElementById('newGoalDays').value, 10) || 90;
+      goals.push({ id: genId(), name, targetAmount: target, currentAmount: current, deadlineDays: days });
+      saveData();
+      closeNewGoalModal();
+      renderBudgetsAndGoals();
+      showToast(`Savings goal "${name}" created!`);
+    }
+    function deleteGoal(id) {
+      markDeleted('goals', id);
+      goals = goals.filter(g => g.id !== id);
+      saveData();
+      renderBudgetsAndGoals();
+      showToast('Savings goal removed.', 'info');
+    }
+
+    function openContributeModal(gid) {
+      activeContributeGoalId = gid;
+      const g = goals.find(x => x.id === gid);
+      if (g) {
+        document.getElementById('contributeGoalForm').reset();
+        document.getElementById('contributeGoalTitle').innerText = 'Contribute to ' + g.name;
+        document.getElementById('contributeGoalModal').classList.remove('hidden');
+      }
+    }
+    function closeContributeModal() { document.getElementById('contributeGoalModal').classList.add('hidden'); }
+    function handleContributeGoal(e) {
+      e.preventDefault();
+      const amt = roundMoney(parseFloat(document.getElementById('contributeGoalAmount').value) || 0);
+      const g = goals.find(x => x.id === activeContributeGoalId);
+      if (g && amt > 0) {
+        g.currentAmount = roundMoney((g.currentAmount || 0) + amt);
+        saveData();
+        closeContributeModal();
+        renderBudgetsAndGoals();
+        showToast(`Deposited ₹${amt.toLocaleString('en-IN')} towards ${g.name}!`);
+      }
+    }
+
+    // =========================================================================
+    // REPORTS & UNIFIED HISTORY
+    // =========================================================================
+    function getUnifiedHistoryItems(domainFilter) {
+      const items = [];
+      const uCustMap = {};
+      udharCustomers.forEach(c => { uCustMap[c.id] = c.name; });
+      const lCustMap = {};
+      customers.forEach(c => { lCustMap[c.id] = c.name; });
+      const accMap = {};
+      accounts.forEach(a => { accMap[a.id] = a.name; });
+
+      udharEntries.forEach(e => {
+        const isGot = e.type === 'GOT';
+        items.push({
+          id: e.id,
+          domain: 'KHATA',
+          title: uCustMap[e.customerId] || 'Udhar Customer',
+          subtitle: [e.billNumber ? `Bill #${e.billNumber}` : '', e.note].filter(Boolean).join(' • ') || (isGot ? 'Payment Mila' : 'Udhar Diya'),
+          badgeText: isGot ? 'Udhar Payment Mila' : 'Udhar Diya',
+          amount: Number(e.amount),
+          isCredit: isGot,
+          date: Number(e.date) || Date.now()
+        });
+      });
+
+      payments.forEach(p => {
+        const isInt = p.payment_type === 'INTEREST_PAYMENT';
+        items.push({
+          id: p.id,
+          domain: 'LOANS',
+          title: lCustMap[p.customer_id] || 'Loan Customer',
+          subtitle: `${p.payment_mode}${p.notes ? ' • ' + p.notes : ''}`,
+          badgeText: isInt ? 'Byaaj Payment' : 'Principal Repayment',
+          amount: Number(p.amount),
+          isCredit: true,
+          date: new Date(p.payment_date).getTime() || Date.now()
+        });
+      });
+
+      transactions.forEach(t => {
+        const isInc = t.type === 'INCOME';
+        items.push({
+          id: t.id,
+          domain: 'ACCOUNTS',
+          title: t.title,
+          subtitle: `${t.category} • ${accMap[t.accountId] || 'Account'}`,
+          badgeText: t.type,
+          amount: Number(t.amount),
+          isCredit: isInc,
+          date: Number(t.dateTimestamp) || Date.now()
+        });
+      });
+
+      return items
+        .filter(i => domainFilter === 'ALL' || i.domain === domainFilter)
+        .sort((a, b) => b.date - a.date);
+    }
+
+    function setReportHistoryFilter(domain) {
+      activeReportHistoryFilter = domain;
+      const map = { ALL: 'repHistAll', KHATA: 'repHistKhata', LOANS: 'repHistLoans', ACCOUNTS: 'repHistAccounts' };
+      Object.entries(map).forEach(([k, id]) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          btn.className = (k === domain)
+            ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-white'
+            : 'px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600';
+        }
+      });
+      renderReports();
+    }
+
+    function renderReports() {
+      const inc = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + Number(t.amount), 0);
+      const exp = transactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + Number(t.amount), 0);
+      const net = inc - exp;
+
+      document.getElementById('reportTotalIncome').innerText = '₹' + inc.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportTotalExpense').innerText = '₹' + exp.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      const netEl = document.getElementById('reportNetCashflow');
+      netEl.innerText = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      netEl.className = 'text-2xl font-bold mt-1 ' + (net >= 0 ? 'text-emerald-600' : 'text-red-600');
+
+      // Udhar Audit
+      const uAgg = getAggregateUdharStats();
+      document.getElementById('reportUdharGave').innerText = '₹' + uAgg.totalGave.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportUdharGot').innerText = '₹' + uAgg.totalGot.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportUdharPending').innerText = '₹' + uAgg.netPending.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      const recPct = uAgg.totalGave > 0 ? Math.min(100, Math.round((uAgg.totalGot / uAgg.totalGave) * 100)) : 100;
+      document.getElementById('reportUdharRecoveryBadge').innerText = `Recovery Rate: ${recPct}%`;
+      document.getElementById('reportUdharRecoveryBar').style.width = `${recPct}%`;
+
+      // Loans Audit
+      let lentP = 0, outI = 0;
+      customers.forEach(c => {
+        lentP += Math.max(0, c.principal_amount - (c.total_principal_repaid || 0));
+        outI += Math.max(0, (c.total_accrued_interest || 0) - (c.total_interest_paid || 0));
+      });
+      const repCollected = payments.reduce((s, p) => s + Number(p.amount), 0);
+
+      document.getElementById('reportLentPrincipal').innerText = '₹' + lentP.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportAccruedInterest').innerText = '₹' + outI.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportRepayments').innerText = '₹' + repCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+      document.getElementById('reportBorrowersCount').innerText = String(customers.length);
+
+      // Expense Breakdown
+      const catMap = {};
+      transactions.filter(t => t.type === 'EXPENSE').forEach(t => {
+        catMap[t.category] = (catMap[t.category] || 0) + Number(t.amount);
+      });
+
+      const container = document.getElementById('reportCategoryBreakdown');
+      if (container) {
+        const entries = Object.entries(catMap);
+        if (entries.length === 0) {
+          container.innerHTML = `<p class="text-xs text-slate-400">No expenses recorded yet.</p>`;
+        } else {
+          container.innerHTML = entries.map(([cat, amt]) => {
+            const pct = exp > 0 ? Math.round((amt / exp) * 100) : 0;
+            return `
+              <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span>${esc(cat)}</span>
+                  <span>₹${amt.toLocaleString('en-IN')} (${pct}%)</span>
+                </div>
+                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="bg-red-500 h-full rounded-full" style="width: ${pct}%"></div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Unified Timeline
+      const timelineContainer = document.getElementById('reportUnifiedTimeline');
+      if (timelineContainer) {
+        const items = getUnifiedHistoryItems(activeReportHistoryFilter);
+        if (items.length === 0) {
+          timelineContainer.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No activity in this category.</p>`;
+        } else {
+          timelineContainer.innerHTML = items.map(item => {
+            const dStr = new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            const badgeStyle = item.domain === 'KHATA'
+              ? 'bg-rose-50 text-rose-700'
+              : item.domain === 'LOANS'
+                ? 'bg-indigo-50 text-indigo-700'
+                : 'bg-emerald-50 text-emerald-700';
+            return `
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeStyle}">${esc(item.badgeText)}</span>
+                    <span class="text-xs font-bold text-slate-900">${esc(item.title)}</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500 mt-0.5">${esc(item.subtitle)} • ${dStr}</p>
+                </div>
+                <span class="text-xs font-extrabold whitespace-nowrap ${item.isCredit ? 'text-emerald-600' : 'text-rose-600'}">
+                  ${item.isCredit ? '+' : '-'}₹${item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    // =========================================================================
+    // SUPABASE AUTH & TWO-WAY CLOUD SYNC
+    // =========================================================================
+    function initSupabaseClient(url, key) {
+      try {
+        if (window.supabase && typeof window.supabase.createClient === 'function' && url.startsWith('https://')) {
+          supabaseClient = window.supabase.createClient(url, key, {
+            auth: { persistSession: false }
+          });
+          document.getElementById('supabaseConfigStatus').innerText = `Connected to ${url}`;
+          return true;
+        }
+      } catch (e) {
+        supabaseClient = null;
+      }
+      return false;
+    }
+
+    function saveSupabaseSettings() {
+      const url = document.getElementById('supabaseUrlInput').value.trim();
+      const key = document.getElementById('supabaseKeyInput').value.trim();
+      if (!url.startsWith('https://') || !key) {
+        showToast('Please enter a valid HTTPS Supabase Project URL and Anon Key.', 'error');
+        return;
+      }
+      storageSet(STORAGE_KEY_SB_URL, url);
+      storageSet(STORAGE_KEY_SB_KEY, key);
+      if (initSupabaseClient(url, key)) {
+        showToast('Supabase connection saved! Sign in to sync your data.');
+      } else {
+        showToast('Saved credentials. Initialize Supabase client after signing in.', 'info');
+      }
+    }
+
+    function openAuthModal() {
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('hidden');
+    }
+    function switchAuthMode(m) {
+      authMode = m;
+      if (m === 'signin') {
+        document.getElementById('btnAuthSignin').className = 'flex-1 pb-2 font-bold text-sm text-emerald-700 border-b-2 border-emerald-700';
+        document.getElementById('btnAuthSignup').className = 'flex-1 pb-2 font-medium text-sm text-slate-500';
+        document.getElementById('authSubmitBtn').innerText = 'Sign In';
+      } else {
+        document.getElementById('btnAuthSignup').className = 'flex-1 pb-2 font-bold text-sm text-emerald-700 border-b-2 border-emerald-700';
+        document.getElementById('btnAuthSignin').className = 'flex-1 pb-2 font-medium text-sm text-slate-500';
+        document.getElementById('authSubmitBtn').innerText = 'Create Account';
+      }
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+
+      if (!supabaseClient) {
+        const url = document.getElementById('supabaseUrlInput').value.trim();
+        const key = document.getElementById('supabaseKeyInput').value.trim();
+        if (url && key) initSupabaseClient(url, key);
+      }
+
+      if (!supabaseClient) {
+        closeAuthModal();
+        switchTab('sync');
+        showToast('Configure your Supabase Project URL and Anon Key in the Supabase Sync tab first.', 'info');
+        return;
+      }
+
+      try {
+        const res = authMode === 'signin'
+          ? await supabaseClient.auth.signInWithPassword({ email, password })
+          : await supabaseClient.auth.signUp({ email, password });
+
+        if (res.error) {
+          showToast(res.error.message || 'Authentication failed.', 'error');
+          return;
+        }
+        currentSessionUser = res.data?.user || null;
+        closeAuthModal();
+        if (currentSessionUser) {
+          document.getElementById('authButtonText').innerText = currentSessionUser.email.split('@')[0];
+          document.getElementById('syncStatusText').innerText = `Signed in: ${currentSessionUser.email}`;
+          showToast(`Signed in as ${currentSessionUser.email}!`);
+        } else {
+          showToast('Check your email inbox to confirm your account.', 'info');
+        }
+      } catch (err) {
+        showToast('Network error connecting to Supabase.', 'error');
+      }
+    }
+
+    async function syncWithSupabase() {
+      if (!supabaseClient || !currentSessionUser) {
+        showToast('Please configure Supabase credentials and sign in first to sync with the cloud.', 'info');
+        openAuthModal();
+        return;
+      }
+
+      const uid = currentSessionUser.id;
+      let uploaded = 0;
+      let deletedCount = 0;
+
+      try {
+        for (const del of pendingDeletes) {
+          await supabaseClient.from(del.table).delete().eq('id', del.id);
+          deletedCount++;
+        }
+        pendingDeletes = [];
+
+        const uCustRows = udharCustomers.map(c => ({
+          id: c.id, user_id: uid, name: c.name, phone: c.phone || '', address: c.address || '', notes: c.notes || '', created_at: c.createdAt || Date.now()
+        }));
+        if (uCustRows.length) { await supabaseClient.from('udhar_customers').upsert(uCustRows); uploaded += uCustRows.length; }
+
+        const uEntryRows = udharEntries.map(e => ({
+          id: e.id, user_id: uid, customer_id: e.customerId, amount: e.amount, type: e.type, date: e.date, note: e.note || '', bill_number: e.billNumber || '', created_at: e.date
+        }));
+        if (uEntryRows.length) { await supabaseClient.from('udhar_entries').upsert(uEntryRows); uploaded += uEntryRows.length; }
+
+        saveData();
+        const nowStr = new Date().toLocaleTimeString('en-IN');
+        document.getElementById('lastSyncReportText').innerText = `Last synced at ${nowStr} (${uploaded} rows uploaded, ${deletedCount} deletions replayed).`;
+        showToast(`Cloud sync completed (${uploaded} rows synced)!`);
+      } catch (err) {
+        showToast('Sync encountered an error. Local data is safe.', 'error');
+      }
+    }
+
+    function copySqlSchema() {
+      const sql = document.getElementById('sqlSchemaSnippet').innerText;
+      copyTextWithFallback(sql);
+      showToast('SQL schema note copied to clipboard!');
+    }
+
+    // Boot Application
+    window.addEventListener('DOMContentLoaded', () => {
+      initData();
+      renderAllViews();
+    });
+  </script>
+</body>
+</html>
