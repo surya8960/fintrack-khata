@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const port = process.env.PORT || 10000;
-server.listen(port, "0.0.0.0");
+server.listen(port, "localhost");
 const ROOT = path.resolve(__dirname);
 
 const MIME = {
