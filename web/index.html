@@ -3176,7 +3176,7 @@
         ['interest_accruals', accruals, a => ({ id:a.id, user_id:uid, customer_id:a.customer_id, start_date:a.start_date, end_date:a.end_date, interest_rate:a.interest_rate, principal_basis:a.principal_basis, completed_months:a.completed_months, partial_days:a.partial_days, days_in_partial_month:a.days_in_partial_month, calculated_interest:a.calculated_interest, calculation_breakdown:a.calculation_breakdown||'' })],
         ['loan_payments', payments, x => ({ id:x.id, user_id:uid, customer_id:x.customer_id, amount:x.amount, payment_date:x.payment_date, payment_type:x.payment_type, payment_mode:x.payment_mode||'', notes:x.notes||'' })],
         ['udhar_customers', udharCustomers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', notes:c.notes||'', created_at:c.createdAt||c.created_at||new Date().toISOString() })],
-        ['udhar_entries', udharEntries, e => ({ id:e.id, user_id:uid, customer_id:e.customerId||e.customer_id, amount:e.amount, type:e.type, date:e.date, note:e.note||'', bill_number:e.billNumber||e.bill_number||'', created_at:new Date(Number(e.date)||Date.now()).toISOString() })],
+        ['udhar_entries', udharEntries, e => ({ id:e.id, user_id:uid, customer_id:e.customerId||e.customer_id, amount:e.amount, type:e.type, date:e.date, note:e.note||'', bill_number:e.billNumber||e.bill_number||'', created_at:Number(e.date)||Date.now() })],
         ['accounts', accounts, a => ({ id:a.id, user_id:uid, name:a.name, type:a.type, balance:a.balance||0, account_number:a.accountNumber||a.account_number||'' })],
         ['transactions', transactions, t => ({ id:t.id, user_id:uid, account_id:t.accountId||t.account_id, target_account_id:t.targetAccountId||t.target_account_id||null, title:t.title, amount:t.amount, type:t.type, category:t.category||'', date_timestamp:t.dateTimestamp||t.date_timestamp||Date.now(), notes:t.notes||'' })],
         ['budgets', budgets, b => ({ id:b.id, user_id:uid, category:b.category, amount:b.amount, period:b.period||'monthly', spent:b.spent||0 })],
@@ -3214,7 +3214,8 @@
         }
         for (const [table, rows, mapRow] of mappings) {
           if (!rows.length) continue;
-          const result = await supabaseClient.from(table).upsert(rows.map(mapRow), { onConflict: 'id' });
+          const payload = rows.map(mapRow);
+          const result = await supabaseClient.from(table).upsert(payload, { onConflict: 'id' });
           if (result.error) fail(table, result.error);
           uploaded += rows.length;
         }
