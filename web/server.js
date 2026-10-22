@@ -9,8 +9,17 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const port = process.env.PORT || 10000;
-server.listen(port, "localhost");
+const port = Number(process.env.PORT) || 10000;
+
+// First create the server
+const server = http.createServer((req, res) => {
+  // Your existing request handling code
+});
+
+// Then start listening
+server.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on port ${port}`);
+});
 const ROOT = path.resolve(__dirname);
 
 const MIME = {
