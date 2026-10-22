@@ -1359,6 +1359,9 @@
     let supabaseClient = null;
     let currentSessionUser = null;
     let authSubscription = null;
+    let autoSyncTimer = null;
+    let isApplyingCloudData = false;
+    let autoSyncInProgress = false;
 
     // Production mode: start with empty ledgers; never seed sample/demo records.
     function seedDefaultData() {
@@ -1444,6 +1447,11 @@
       storageSet(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
       storageSet(STORAGE_KEY_GOALS, JSON.stringify(goals));
       storageSet(STORAGE_KEY_DELETES, JSON.stringify(pendingDeletes));
+      // Debounced background sync after local edits; never sync during initial load/cloud merge.
+      if (!isApplyingCloudData && currentSessionUser && supabaseClient) {
+        clearTimeout(autoSyncTimer);
+        autoSyncTimer = setTimeout(() => { syncWithSupabase({ quiet: true }); }, 900);
+      }
     }
 
     function markDeleted(table, id) {
@@ -3059,10 +3067,14 @@
             const session = data && data.session;
             currentSessionUser = session && session.user ? session.user : null;
             updateAuthUi(currentSessionUser);
+            if (currentSessionUser) setTimeout(() => syncWithSupabase({ quiet: true, initial: true }), 0);
           }).catch(err => console.warn('Session restore failed:', err));
           const subscriptionResult = supabaseClient.auth.onAuthStateChange((_event, session) => {
             currentSessionUser = session && session.user ? session.user : null;
             updateAuthUi(currentSessionUser);
+            if (currentSessionUser && _event === 'SIGNED_IN') {
+              setTimeout(() => syncWithSupabase({ quiet: true, initial: true }), 0);
+            }
           });
           authSubscription = subscriptionResult && subscriptionResult.data && subscriptionResult.data.subscription;
           return true;
@@ -3147,40 +3159,64 @@
       }
     }
 
-    async function syncWithSupabase() {
+    async function syncWithSupabase(options = {}) {
+      const { quiet = false, initial = false } = options;
       if (!supabaseClient || !currentSessionUser) {
-        showToast('Please configure Supabase credentials and sign in first to sync with the cloud.', 'info');
-        openAuthModal();
+        if (!quiet) { showToast('Login karne ke baad data automatically sync hoga.', 'info'); openAuthModal(); }
         return;
       }
-
+      if (autoSyncInProgress) return;
+      autoSyncInProgress = true;
       const uid = currentSessionUser.id;
       let uploaded = 0;
-      let deletedCount = 0;
-
+      const fail = (table, error) => { throw new Error(`${table}: ${error?.message || 'sync failed'}`); };
+      // Convert app records to the columns used by the Supabase schema.
+      const mappings = [
+        ['khata_customers', customers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', principal_amount:c.principal_amount||0, monthly_interest_rate:c.monthly_interest_rate||0, total_principal_repaid:c.total_principal_repaid||0, total_accrued_interest:c.total_accrued_interest||0, total_interest_paid:c.total_interest_paid||0, last_calculation_date:c.last_calculation_date||null, notes:c.notes||'', created_at:c.created_at||c.createdAt||new Date().toISOString() })],
+        ['interest_accruals', accruals, a => ({ id:a.id, user_id:uid, customer_id:a.customer_id, start_date:a.start_date, end_date:a.end_date, interest_rate:a.interest_rate, principal_basis:a.principal_basis, completed_months:a.completed_months, partial_days:a.partial_days, days_in_partial_month:a.days_in_partial_month, calculated_interest:a.calculated_interest, calculation_breakdown:a.calculation_breakdown||'' })],
+        ['loan_payments', payments, x => ({ id:x.id, user_id:uid, customer_id:x.customer_id, amount:x.amount, payment_date:x.payment_date, payment_type:x.payment_type, payment_mode:x.payment_mode||'', notes:x.notes||'' })],
+        ['udhar_customers', udharCustomers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', notes:c.notes||'', created_at:c.createdAt||c.created_at||new Date().toISOString() })],
+        ['udhar_entries', udharEntries, e => ({ id:e.id, user_id:uid, customer_id:e.customerId||e.customer_id, amount:e.amount, type:e.type, date:e.date, note:e.note||'', bill_number:e.billNumber||e.bill_number||'', created_at:new Date(Number(e.date)||Date.now()).toISOString() })],
+        ['accounts', accounts, a => ({ id:a.id, user_id:uid, name:a.name, type:a.type, balance:a.balance||0, account_number:a.accountNumber||a.account_number||'' })],
+        ['transactions', transactions, t => ({ id:t.id, user_id:uid, account_id:t.accountId||t.account_id, target_account_id:t.targetAccountId||t.target_account_id||null, title:t.title, amount:t.amount, type:t.type, category:t.category||'', date_timestamp:t.dateTimestamp||t.date_timestamp||Date.now(), notes:t.notes||'' })],
+        ['budgets', budgets, b => ({ id:b.id, user_id:uid, category:b.category, amount:b.amount, period:b.period||'monthly', spent:b.spent||0 })],
+        ['goals', goals, g => ({ id:g.id, user_id:uid, title:g.title||g.name, target_amount:g.target_amount||g.targetAmount||0, current_amount:g.current_amount||g.currentAmount||0, target_date:g.target_date||g.targetDate||null })]
+      ];
       try {
-        for (const del of pendingDeletes) {
-          await supabaseClient.from(del.table).delete().eq('id', del.id);
-          deletedCount++;
+        // Initial login pulls cloud rows first so an empty browser does not overwrite cloud data.
+        if (initial) {
+          isApplyingCloudData = true;
+          const pulls = await Promise.all(mappings.map(([table]) => supabaseClient.from(table).select('*').eq('user_id', uid)));
+          pulls.forEach((result, i) => { if (result.error) fail(mappings[i][0], result.error); });
+          const cloud = Object.fromEntries(mappings.map(([table], i) => [table, pulls[i].data || []]));
+          // Map cloud rows back to the dashboard's local object shape.
+          customers = cloud.khata_customers.map(({user_id,created_at,...x})=>({...x, created_at}));
+          accruals = cloud.interest_accruals.map(({user_id,...x})=>x);
+          payments = cloud.loan_payments.map(({user_id,...x})=>x);
+          udharCustomers = cloud.udhar_customers.map(({user_id,created_at,...x})=>({...x,createdAt:created_at}));
+          udharEntries = cloud.udhar_entries.map(({user_id,customer_id,bill_number,created_at,...x})=>({...x,customerId:customer_id,billNumber:bill_number}));
+          accounts = cloud.accounts.map(({user_id,account_number,...x})=>({...x,accountNumber:account_number}));
+          transactions = cloud.transactions.map(({user_id,account_id,target_account_id,date_timestamp,...x})=>({...x,accountId:account_id,targetAccountId:target_account_id,dateTimestamp:date_timestamp}));
+          budgets = cloud.budgets.map(({user_id,...x})=>x);
+          goals = cloud.goals.map(({user_id,target_amount,current_amount,target_date,...x})=>({...x,target_amount,current_amount,target_date}));
+          saveData(); renderAllViews();
+          isApplyingCloudData = false;
         }
-        pendingDeletes = [];
-
-        const uCustRows = udharCustomers.map(c => ({
-          id: c.id, user_id: uid, name: c.name, phone: c.phone || '', address: c.address || '', notes: c.notes || '', created_at: c.createdAt || Date.now()
-        }));
-        if (uCustRows.length) { await supabaseClient.from('udhar_customers').upsert(uCustRows); uploaded += uCustRows.length; }
-
-        const uEntryRows = udharEntries.map(e => ({
-          id: e.id, user_id: uid, customer_id: e.customerId, amount: e.amount, type: e.type, date: e.date, note: e.note || '', bill_number: e.billNumber || '', created_at: e.date
-        }));
-        if (uEntryRows.length) { await supabaseClient.from('udhar_entries').upsert(uEntryRows); uploaded += uEntryRows.length; }
-
-        saveData();
-        const nowStr = new Date().toLocaleTimeString('en-IN');
-        document.getElementById('lastSyncReportText').innerText = `Last synced at ${nowStr} (${uploaded} rows uploaded, ${deletedCount} deletions replayed).`;
-        showToast(`Cloud sync completed (${uploaded} rows synced)!`);
+        for (const [table, rows, mapRow] of mappings) {
+          if (!rows.length) continue;
+          const result = await supabaseClient.from(table).upsert(rows.map(mapRow), { onConflict: 'id' });
+          if (result.error) fail(table, result.error);
+          uploaded += rows.length;
+        }
+        const report = document.getElementById('lastSyncReportText');
+        if (report) report.innerText = `Auto-synced at ${new Date().toLocaleTimeString('en-IN')} · ${uploaded} rows uploaded.`;
+        if (!quiet) showToast(`Automatic cloud sync complete (${uploaded} rows uploaded).`);
       } catch (err) {
-        showToast('Sync encountered an error. Local data is safe.', 'error');
+        isApplyingCloudData = false;
+        console.error('FinTrack auto-sync failed:', err);
+        if (!quiet) showToast(`Sync error: ${err.message}. Local data is safe.`, 'error');
+      } finally {
+        autoSyncInProgress = false;
       }
     }
 
