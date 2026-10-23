@@ -94,6 +94,13 @@ const server = http.createServer((req, res) => {
 
   fs.stat(file, (err, stat) => {
     if (err || !stat.isFile()) {
+      // A missing asset (e.g. /config.js, /favicon.ico) must be a real 404; serving index.html
+      // there makes browsers try to execute HTML as JavaScript. Only extension-less routes
+      // fall back to the single-page app.
+      if (path.extname(file)) {
+        res.writeHead(404, SECURITY_HEADERS);
+        return res.end('Not Found');
+      }
       file = path.join(ROOT, 'index.html');
     }
 
@@ -104,6 +111,7 @@ const server = http.createServer((req, res) => {
       }
 
       res.writeHead(200, {
+        'Cache-Control': path.basename(file) === 'index.html' ? 'no-cache' : 'public, max-age=300',
         'Content-Type':
           MIME[path.extname(file).toLowerCase()] ||
           'application/octet-stream',

@@ -12,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.10/dist/umd/supabase.js"></script>
   <!-- Optional deployment config: create web/config.js with FINTRACK_SUPABASE_CONFIG -->
   <script src="./config.js"></script>
+  <script src="./sync.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     body { font-family: 'Inter', sans-serif; }
@@ -1413,10 +1414,10 @@
       const demoTransactionIds = new Set(['tx-001','tx-002','tx-003','tx-004']);
       const demoBudgetIds = new Set(['bgt-01','bgt-02','bgt-03']);
       const demoGoalIds = new Set(['gol-01','gol-02']);
-      customers = customers.filter(x => !demoCustomerIds.has(x.id) && !['Rajesh Kumar','Sunil Verma'].includes(x.name));
+      customers = customers.filter(x => !demoCustomerIds.has(x.id));
       accruals = accruals.filter(x => !demoAccrualIds.has(x.id));
       payments = payments.filter(x => !demoPaymentIds.has(x.id));
-      udharCustomers = udharCustomers.filter(x => !demoUdharCustomerIds.has(x.id) && !['Ramesh General Store','Priya Medical Store','Amit Sharma'].includes(x.name));
+      udharCustomers = udharCustomers.filter(x => !demoUdharCustomerIds.has(x.id));
       udharEntries = udharEntries.filter(x => !demoUdharEntryIds.has(x.id));
       accounts = accounts.filter(x => !demoAccountIds.has(x.id));
       transactions = transactions.filter(x => !demoTransactionIds.has(x.id));
@@ -3159,91 +3160,71 @@
       }
     }
 
-    // Supabase schema stores created_at as BIGINT (Unix milliseconds), not ISO text.
-    function toBigIntTimestamp(value) {
-      if (value === null || value === undefined || value === '') return Date.now();
-      if (typeof value === 'number' && Number.isFinite(value)) return Math.trunc(value);
-      const numeric = Number(value);
-      if (Number.isFinite(numeric) && String(value).trim() !== '') return Math.trunc(numeric);
-      const parsed = Date.parse(String(value));
-      return Number.isFinite(parsed) ? parsed : Date.now();
-    }
-
+    // Cloud sync logic lives in sync.js (unit tested). It maps every local record to the exact
+    // Supabase columns, skips rows that would violate a constraint, replays local deletions and
+    // downloads past the 1000-row API limit.
+    let syncQueued = false;
     async function syncWithSupabase(options = {}) {
       const { quiet = false, initial = false } = options;
       if (!supabaseClient || !currentSessionUser) {
         if (!quiet) { showToast('Login karne ke baad data automatically sync hoga.', 'info'); openAuthModal(); }
         return;
       }
-      if (autoSyncInProgress) return;
+      if (!window.FinTrackSync) {
+        if (!quiet) showToast('Sync module load nahi hua. Page refresh karein.', 'error');
+        return;
+      }
+      if (autoSyncInProgress) { syncQueued = true; return; } // run again once the current sync ends
       autoSyncInProgress = true;
       const uid = currentSessionUser.id;
-      let uploaded = 0;
-      const fail = (table, error) => { throw new Error(`${table}: ${error?.message || 'sync failed'}`); };
-      // Convert app records to the columns used by the Supabase schema.
-      const mappings = [
-        ['khata_customers', customers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', principal_amount:c.principal_amount||0, monthly_interest_rate:c.monthly_interest_rate||0, total_principal_repaid:c.total_principal_repaid||0, total_accrued_interest:c.total_accrued_interest||0, total_interest_paid:c.total_interest_paid||0, last_calculation_date:c.last_calculation_date||null, notes:c.notes||'', created_at:toBigIntTimestamp(c.created_at ?? c.createdAt) })],
-        ['interest_accruals', accruals, a => ({ id:a.id, user_id:uid, customer_id:a.customer_id, start_date:a.start_date, end_date:a.end_date, interest_rate:a.interest_rate, principal_basis:a.principal_basis, completed_months:a.completed_months, partial_days:a.partial_days, days_in_partial_month:a.days_in_partial_month, calculated_interest:a.calculated_interest, calculation_breakdown:a.calculation_breakdown||'' })],
-        ['loan_payments', payments, x => ({ id:x.id, user_id:uid, customer_id:x.customer_id, amount:x.amount, payment_date:x.payment_date, payment_type:x.payment_type, payment_mode:x.payment_mode||'', notes:x.notes||'' })],
-        ['udhar_customers', udharCustomers, c => ({ id:c.id, user_id:uid, name:c.name, phone:c.phone||'', address:c.address||'', notes:c.notes||'', created_at:toBigIntTimestamp(c.createdAt ?? c.created_at) })],
-        ['udhar_entries', udharEntries, e => ({ id:e.id, user_id:uid, customer_id:e.customerId||e.customer_id, amount:e.amount, type:e.type, date:e.date, note:e.note||'', bill_number:e.billNumber||e.bill_number||'', created_at:Number(e.date)||Date.now() })],
-        ['accounts', accounts, a => ({ id:a.id, user_id:uid, name:a.name, type:a.type, balance:a.balance||0, account_number:a.accountNumber||a.account_number||'' })],
-        ['transactions', transactions, t => ({ id:t.id, user_id:uid, account_id:t.accountId||t.account_id, target_account_id:t.targetAccountId||t.target_account_id||null, title:t.title, amount:t.amount, type:t.type, category:t.category||'', date_timestamp:t.dateTimestamp||t.date_timestamp||Date.now(), notes:t.notes||'' })],
-        ['budgets', budgets, b => ({ id:b.id, user_id:uid, category:b.category, amount:b.amount, period:b.period||'monthly', spent:b.spent||0 })],
-        ['goals', goals, g => ({ id:g.id, user_id:uid, title:g.title||g.name, target_amount:g.target_amount||g.targetAmount||0, current_amount:g.current_amount||g.currentAmount||0, target_date:g.target_date||g.targetDate||null })]
-      ];
+      const snapshot = () => ({ customers, accruals, payments, udharCustomers, udharEntries, accounts, transactions, budgets, goals });
+      const statusEl = document.getElementById('syncStatusText');
       try {
-        // Initial login pulls cloud rows first so an empty browser does not overwrite cloud data.
-        if (initial) {
+        const report = await FinTrackSync.push({
+          client: supabaseClient, userId: uid, data: snapshot(), pendingDeletes: pendingDeletes.slice()
+        });
+
+        if (report.deleted.length) {
+          const done = new Set(report.deleted.map(d => d.table + ':' + d.id));
+          pendingDeletes = pendingDeletes.filter(d => !done.has(d.table + ':' + d.id));
           isApplyingCloudData = true;
-          const pulls = await Promise.all(mappings.map(([table]) => supabaseClient.from(table).select('*').eq('user_id', uid)));
-          pulls.forEach((result, i) => { if (result.error) fail(mappings[i][0], result.error); });
-          const cloud = Object.fromEntries(mappings.map(([table], i) => [table, pulls[i].data || []]));
-          // Convert cloud rows to the app's expected shape, then merge by ID.
-          // Never discard locally cached records just because a cloud table returned empty.
-          const mergeById = (localRows, cloudRows, convert = x => x) => {
-            const merged = new Map((Array.isArray(localRows) ? localRows : []).filter(x => x && x.id != null).map(x => [String(x.id), x]));
-            for (const raw of (cloudRows || [])) {
-              const row = convert(raw);
-              if (row && row.id != null) merged.set(String(row.id), { ...(merged.get(String(row.id)) || {}), ...row });
-            }
-            return [...merged.values()];
-          };
-          customers = mergeById(customers, cloud.khata_customers, ({user_id, created_at, ...x}) => ({
-            ...x, created_at: created_at == null ? undefined : new Date(Number(created_at)).toISOString()
-          }));
-          accruals = mergeById(accruals, cloud.interest_accruals, ({user_id, ...x}) => x);
-          payments = mergeById(payments, cloud.loan_payments, ({user_id, ...x}) => x);
-          udharCustomers = mergeById(udharCustomers, cloud.udhar_customers, ({user_id, created_at, ...x}) => ({
-            ...x, createdAt: x.createdAt || (created_at == null ? undefined : new Date(Number(created_at)).toISOString())
-          }));
-          udharEntries = mergeById(udharEntries, cloud.udhar_entries, ({user_id, customer_id, bill_number, created_at, ...x}) => ({...x, customerId: customer_id ?? x.customerId, billNumber: bill_number ?? x.billNumber}));
-          accounts = mergeById(accounts, cloud.accounts, ({user_id, account_number, ...x}) => ({...x, accountNumber: account_number ?? x.accountNumber}));
-          transactions = mergeById(transactions, cloud.transactions, ({user_id, account_id, target_account_id, date_timestamp, ...x}) => ({...x, accountId: account_id ?? x.accountId, targetAccountId: target_account_id ?? x.targetAccountId, dateTimestamp: date_timestamp ?? x.dateTimestamp}));
-          budgets = mergeById(budgets, cloud.budgets, ({user_id, ...x}) => x);
-          goals = mergeById(goals, cloud.goals, ({user_id, target_amount, current_amount, target_date, ...x}) => ({...x, target_amount: target_amount ?? x.target_amount, current_amount: current_amount ?? x.current_amount, target_date: target_date ?? x.target_date}));
-          saveData();
-          renderAllViews();
-          isApplyingCloudData = false;
+          try { saveData(); } finally { isApplyingCloudData = false; }
         }
-        for (const [table, rows, mapRow] of mappings) {
-          if (!rows.length) continue;
-          const payload = rows.map(mapRow);
-          const result = await supabaseClient.from(table).upsert(payload, { onConflict: 'id' });
-          if (result.error) fail(table, result.error);
-          uploaded += rows.length;
+
+        let downloaded = 0;
+        // Pull on login and on manual sync; background syncs after each edit only upload.
+        if ((initial || !quiet) && report.errors.length === 0) {
+          const remote = await FinTrackSync.pull({ client: supabaseClient, userId: uid });
+          const { merged, added } = FinTrackSync.mergeRemote(snapshot(), remote, pendingDeletes);
+          isApplyingCloudData = true;
+          try {
+            ({ customers, accruals, payments, udharCustomers, udharEntries, accounts, transactions, budgets, goals } = merged);
+            saveData();
+            renderAllViews();
+          } finally { isApplyingCloudData = false; }
+          downloaded = added;
         }
-        const report = document.getElementById('lastSyncReportText');
-        if (report) report.innerText = `Auto-synced at ${new Date().toLocaleTimeString('en-IN')} · ${uploaded} rows uploaded.`;
-        if (!quiet) showToast(`Automatic cloud sync complete (${uploaded} rows uploaded).`);
+
+        if (report.errors.length) {
+          const first = report.errors[0];
+          throw new Error(`${first.table}: ${first.message}`);
+        }
+
+        const skippedNote = report.skipped.length ? ` · ${report.skipped.length} invalid row(s) skipped` : '';
+        const text = `Synced at ${new Date().toLocaleTimeString('en-IN')} · ${report.uploaded} uploaded, ${downloaded} downloaded${skippedNote}`;
+        const reportEl = document.getElementById('lastSyncReportText');
+        if (reportEl) reportEl.innerText = text;
+        if (statusEl) statusEl.innerText = `Signed in: ${currentSessionUser.email || 'Supabase user'}`;
+        if (report.skipped.length) console.warn('FinTrack sync skipped rows:', report.skipped);
+        if (!quiet) showToast(text, report.skipped.length ? 'info' : 'success');
       } catch (err) {
         isApplyingCloudData = false;
-        console.error('FinTrack auto-sync failed:', err);
-        const status = document.getElementById('syncStatusText');
-        if (status) status.innerText = `Sync issue: ${err.message}`;
+        console.error('FinTrack sync failed:', err);
+        if (statusEl) statusEl.innerText = `Sync issue: ${err.message}`;
         if (!quiet) showToast(`Sync error: ${err.message}. Local data is safe.`, 'error');
       } finally {
         autoSyncInProgress = false;
+        if (syncQueued) { syncQueued = false; setTimeout(() => syncWithSupabase({ quiet: true }), 300); }
       }
     }
 

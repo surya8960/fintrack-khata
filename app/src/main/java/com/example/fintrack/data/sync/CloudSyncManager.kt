@@ -26,7 +26,14 @@ import kotlinx.serialization.json.JsonNamingStrategy
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-data class SyncReport(val session: UserSession, val uploaded: Int, val downloaded: Int, val deleted: Int)
+data class SyncReport(
+    val session: UserSession,
+    val uploaded: Int,
+    val downloaded: Int,
+    val deleted: Int,
+    /** Rows the server rejected (constraint violations). They stay local and sync continues. */
+    val skipped: Int = 0
+)
 
 /**
  * Two-way sync between the local ledger and the user's Supabase project.
@@ -100,13 +107,29 @@ class CloudSyncManager(
 
         // 2. Upload
         var uploaded = 0
+        var skipped = 0
         val userId = session.userId!!
         for (table in tables) {
             val rows = table.encode(localK, localF).map { (it as JsonObject).withUser(userId) }
             rows.chunked(UPLOAD_CHUNK).forEach { chunk ->
-                authed { service.upsert(it, table.name, JsonArray(chunk)) }
+                try {
+                    authed { service.upsert(it, table.name, JsonArray(chunk)) }
+                    uploaded += chunk.size
+                } catch (e: SupabaseException) {
+                    // 400/409/422 = the server rejected the payload (e.g. a CHECK constraint).
+                    // One bad row must not block the whole ledger, so retry row by row.
+                    if (e.status !in ROW_ERROR_STATUSES) throw e
+                    chunk.forEach { row ->
+                        try {
+                            authed { service.upsert(it, table.name, JsonArray(listOf(row))) }
+                            uploaded++
+                        } catch (single: SupabaseException) {
+                            if (single.status !in ROW_ERROR_STATUSES) throw single
+                            skipped++
+                        }
+                    }
+                }
             }
-            uploaded += rows.size
         }
 
         // 3. Download + merge
@@ -134,7 +157,8 @@ class CloudSyncManager(
             session = session.copy(lastSyncTime = System.currentTimeMillis()),
             uploaded = uploaded,
             downloaded = downloaded,
-            deleted = pending.size
+            deleted = pending.size,
+            skipped = skipped
         )
     }
 
@@ -151,5 +175,6 @@ class CloudSyncManager(
 
     private companion object {
         const val UPLOAD_CHUNK = 500
+        val ROW_ERROR_STATUSES = setOf(400, 409, 422)
     }
 }

@@ -43,3 +43,19 @@ test('server serves index and refuses unsafe requests', async () => {
     server.closeAllConnections?.();
   }
 });
+
+test('missing static assets return 404 instead of index.html', async () => {
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  try {
+    const { port } = server.address();
+    const status = (p) => new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: p }, res => { res.resume(); resolve(res.statusCode); }).on('error', reject);
+    });
+    assert.strictEqual(await status('/does-not-exist.js'), 404);
+    assert.strictEqual(await status('/favicon.ico'), 404);
+    assert.strictEqual(await status('/sync.js'), 200);
+  } finally {
+    server.close();
+    server.closeAllConnections?.();
+  }
+});
