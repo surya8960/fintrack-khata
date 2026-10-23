@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -134,12 +135,26 @@ class SupabaseService {
         }
     }
 
+    /**
+     * Downloads a whole table. PostgREST caps every response at 1000 rows (Supabase default),
+     * so the table is read page by page; otherwise ledgers larger than 1000 rows would be
+     * silently truncated on a new device.
+     */
     suspend fun fetchAll(session: UserSession, table: String): JsonArray = withContext(Dispatchers.IO) {
-        val response = client.get("${session.supabaseUrl}/rest/v1/$table?select=*&limit=10000") {
-            authHeaders(session)
+        val all = ArrayList<JsonElement>()
+        var offset = 0
+        while (true) {
+            val response = client.get(
+                "${session.supabaseUrl}/rest/v1/$table?select=*&order=id.asc&limit=$PAGE_SIZE&offset=$offset"
+            ) {
+                authHeaders(session)
+            }
+            val page = json.decodeFromString(JsonArray.serializer(), ensureOk(response))
+            all.addAll(page)
+            if (page.size < PAGE_SIZE) break
+            offset += PAGE_SIZE
         }
-        val body = ensureOk(response)
-        json.decodeFromString(JsonArray.serializer(), body)
+        JsonArray(all)
     }
 
     suspend fun deleteById(session: UserSession, table: String, id: String) {
@@ -173,6 +188,8 @@ class SupabaseService {
     }.getOrNull() ?: body.take(200).ifBlank { "Unexpected server response" }
 
     companion object {
+        const val PAGE_SIZE = 1000
+
         /** Accepts `abc.supabase.co`, with/without scheme or trailing slash. HTTPS is enforced. */
         fun normalizeUrl(raw: String): String {
             val trimmed = raw.trim().trimEnd('/')

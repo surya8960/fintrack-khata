@@ -1,0 +1,78 @@
+name: Release
+
+# Publishes a GitHub Release with the APK when a version tag is pushed:  git tag v1.0.1 && git push --tags
+# Conditions:
+#   * the tag must match the versionName in app/build.gradle.kts (prevents releasing the wrong build)
+#   * tests must pass before anything is built
+#   * the APK is SIGNED only when the 4 signing secrets exist; otherwise an unsigned APK is attached
+#     and the release is marked as a pre-release so nobody ships it by mistake
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      KEYSTORE_BASE64: ${{ secrets.FINTRACK_KEYSTORE_BASE64 }}
+      FINTRACK_KEYSTORE_PASSWORD: ${{ secrets.FINTRACK_KEYSTORE_PASSWORD }}
+      FINTRACK_KEY_ALIAS: ${{ secrets.FINTRACK_KEY_ALIAS }}
+      FINTRACK_KEY_PASSWORD: ${{ secrets.FINTRACK_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag must match versionName
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          echo "tag=$TAG versionName=$VERSION"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag v$TAG does not match versionName $VERSION in app/build.gradle.kts"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - run: chmod +x gradlew
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Decode keystore (only if secrets are configured)
+        id: signing
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$FINTRACK_KEYSTORE_PASSWORD" ] && [ -n "$FINTRACK_KEY_ALIAS" ] && [ -n "$FINTRACK_KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "FINTRACK_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Signing secrets not set - building an UNSIGNED APK"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk dist/
+          ls -la dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
+          prerelease: ${{ steps.signing.outputs.signed != 'true' }}

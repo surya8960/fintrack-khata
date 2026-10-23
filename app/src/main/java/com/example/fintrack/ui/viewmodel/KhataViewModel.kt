@@ -10,6 +10,8 @@ import com.example.fintrack.BuildConfig
 import com.example.fintrack.data.local.FinanceSnapshot
 import com.example.fintrack.data.local.JsonFileStore
 import com.example.fintrack.data.local.KhataSnapshot
+import com.example.fintrack.data.local.SecureSessionStore
+import com.example.fintrack.data.supabase.SupabaseException
 import com.example.fintrack.data.model.UserSession
 import com.example.fintrack.data.supabase.SupabaseService
 import com.example.fintrack.data.sync.CloudSyncManager
@@ -34,12 +36,15 @@ import com.example.fintrack.domain.calculator.CalculationResult
 import com.example.fintrack.domain.calculator.InterestCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -47,7 +52,8 @@ import java.io.File
 class KhataViewModel(
     private val khataRepo: KhataRepository = KhataRepository(),
     private val financeRepo: FinanceRepository = FinanceRepository(),
-    private val supabase: SupabaseService = SupabaseService()
+    private val supabase: SupabaseService = SupabaseService(),
+    private val sessionStore: SecureSessionStore? = null
 ) : ViewModel() {
 
     private val syncManager = CloudSyncManager(supabase, khataRepo, financeRepo)
@@ -571,8 +577,13 @@ class KhataViewModel(
         startDate: Long,
         notes: String
     ): Boolean {
-        if (name.isBlank() || principal <= 0.0) {
+        if (name.isBlank() || principal <= 0.0 || !principal.isFinite()) {
             _uiMessage.value = "Kripya naam aur sahi mool dhan darj karein"
+            return false
+        }
+        // Negative / NaN / Infinity rates would otherwise throw inside the repository (crash).
+        if (rate < 0.0 || !rate.isFinite()) {
+            _uiMessage.value = "Byaaj dar sahi honi chahiye (0 ya usse zyada)"
             return false
         }
         khataRepo.addCustomer(
@@ -602,6 +613,7 @@ class KhataViewModel(
     fun closeAddAccountDialog() { _showAddAccountDialog.value = false }
     fun addAccount(name: String, type: AccountType, balance: Double, accNumber: String, colorHex: String): Boolean {
         if (name.isBlank()) { _uiMessage.value = "Account name is required"; return false }
+        if (!balance.isFinite()) { _uiMessage.value = "Enter a valid opening balance"; return false }
         financeRepo.addAccount(name, type, balance, accNumber, colorHex)
         _uiMessage.value = "Account '$name' created!"
         _showAddAccountDialog.value = false
@@ -640,7 +652,7 @@ class KhataViewModel(
     fun openAddBudgetDialog() { _showAddBudgetDialog.value = true }
     fun closeAddBudgetDialog() { _showAddBudgetDialog.value = false }
     fun addBudget(category: String, limit: Double, monthYear: String): Boolean {
-        if (category.isBlank() || limit <= 0.0) {
+        if (category.isBlank() || limit <= 0.0 || !limit.isFinite()) {
             _uiMessage.value = "Enter valid category and limit"
             return false
         }
@@ -660,7 +672,7 @@ class KhataViewModel(
     fun openAddGoalDialog() { _showAddGoalDialog.value = true }
     fun closeAddGoalDialog() { _showAddGoalDialog.value = false }
     fun addGoal(name: String, target: Double, current: Double, deadlineDays: Int = 90, color: String = "#2563EB"): Boolean {
-        if (name.isBlank() || target <= 0.0) {
+        if (name.isBlank() || target <= 0.0 || !target.isFinite() || current < 0.0 || !current.isFinite()) {
             _uiMessage.value = "Enter valid goal name and target"
             return false
         }
@@ -689,6 +701,66 @@ class KhataViewModel(
     private val _isCloudBusy = MutableStateFlow(false)
     val isCloudBusy: StateFlow<Boolean> = _isCloudBusy.asStateFlow()
 
+    /** Ledger content as of the last successful sync; used to skip pointless automatic syncs. */
+    private var lastSyncedSnapshot: Pair<KhataSnapshot, FinanceSnapshot>? = null
+
+    // Declared after every property they touch (viewModelScope may run these immediately).
+    init {
+        restoreSession()
+        startAutoSync()
+    }
+
+    /** Silently signs the user in again from the encrypted refresh token saved on this device. */
+    private fun restoreSession() {
+        val saved = sessionStore?.load() ?: return
+        viewModelScope.launch {
+            _isCloudBusy.value = true
+            var fresh: UserSession? = null
+            try {
+                supabase.refresh(saved)
+                    .onSuccess { fresh = it }
+                    .onFailure { e ->
+                        // Token rejected (expired / revoked): forget it. Offline errors keep it for next time.
+                        if (e is SupabaseException && e.status in 400..499) sessionStore?.clear()
+                    }
+            } finally {
+                _isCloudBusy.value = false
+            }
+            fresh?.let {
+                khataRepo.updateUserSession(it)
+                sessionStore?.save(it)
+                launchSync(it, quiet = true)
+            }
+        }
+    }
+
+    /**
+     * Automatic cloud backup. Conditions (all must hold): the user is signed in, no sync is
+     * running, the ledger really changed since the last sync, and the user stopped editing for
+     * [AUTO_SYNC_DELAY_MS]. Failures are silent; the manual "Sync now" button still reports them.
+     */
+    @OptIn(FlowPreview::class)
+    private fun startAutoSync() {
+        viewModelScope.launch {
+            combine(
+                listOf(
+                    khataRepo.udharCustomers, khataRepo.udharEntries, khataRepo.customers,
+                    khataRepo.interestAccruals, khataRepo.payments,
+                    financeRepo.accounts, financeRepo.transactions, financeRepo.budgets, financeRepo.goals
+                )
+            ) { }
+                .drop(1)
+                .debounce(AUTO_SYNC_DELAY_MS)
+                .collect {
+                    val session = userSession.value
+                    if (!session.isAuthenticated || _isCloudBusy.value) return@collect
+                    val current = khataRepo.snapshot() to financeRepo.snapshot()
+                    if (current == lastSyncedSnapshot) return@collect
+                    launchSync(session, quiet = true)
+                }
+        }
+    }
+
     fun authenticate(register: Boolean, supabaseUrl: String, anonKey: String, email: String, password: String) {
         if (_isCloudBusy.value) return
         viewModelScope.launch {
@@ -699,6 +771,7 @@ class KhataViewModel(
                 result
                     .onSuccess { session ->
                         khataRepo.updateUserSession(session)
+                        if (session.isAuthenticated) sessionStore?.save(session)
                         _uiMessage.value = when {
                             session.isAuthenticated -> "Signed in as ${session.email}"
                             else -> "Account created. Check your e-mail to confirm it, then sign in."
@@ -713,6 +786,8 @@ class KhataViewModel(
 
     fun signOut() {
         khataRepo.updateUserSession(UserSession())
+        sessionStore?.clear()
+        lastSyncedSnapshot = null
         _uiMessage.value = "Signed out"
     }
 
@@ -723,15 +798,26 @@ class KhataViewModel(
             _uiMessage.value = "Please sign in first"
             return
         }
+        launchSync(session, quiet = false)
+    }
+
+    private fun launchSync(session: UserSession, quiet: Boolean) {
         viewModelScope.launch {
             _isCloudBusy.value = true
             try {
                 syncManager.sync(session)
                     .onSuccess { report ->
                         khataRepo.updateUserSession(report.session)
-                        _uiMessage.value = "Sync complete: ${report.uploaded} uploaded, ${report.downloaded} downloaded"
+                        sessionStore?.save(report.session) // refresh tokens rotate; keep the newest one
+                        lastSyncedSnapshot = khataRepo.snapshot() to financeRepo.snapshot()
+                        if (!quiet || report.skipped > 0) {
+                            _uiMessage.value = buildString {
+                                append("Sync complete: ${report.uploaded} uploaded, ${report.downloaded} downloaded")
+                                if (report.skipped > 0) append(" (${report.skipped} invalid row(s) skipped)")
+                            }
+                        }
                     }
-                    .onFailure { _uiMessage.value = "Sync failed: ${it.message ?: "unknown error"}" }
+                    .onFailure { if (!quiet) _uiMessage.value = "Sync failed: ${it.message ?: "unknown error"}" }
             } finally {
                 _isCloudBusy.value = false
             }
@@ -771,6 +857,8 @@ class KhataViewModel(
     }
 
     companion object {
+        private const val AUTO_SYNC_DELAY_MS = 5_000L
+
         /**
          * Production wiring: ledger data is persisted to the app's private storage and demo
          * records are only seeded in debug builds.
@@ -791,7 +879,8 @@ class KhataViewModel(
                             store = JsonFileStore(File(dir, "finance.json"), FinanceSnapshot.serializer()),
                             scope = scope,
                             seedDemoData = BuildConfig.DEBUG
-                        )
+                        ),
+                        sessionStore = SecureSessionStore(File(appContext.filesDir, "secure/session.bin"))
                     )
                 }
             }
