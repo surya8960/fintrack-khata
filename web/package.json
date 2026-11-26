@@ -1,0 +1,11 @@
+{
+  "name": "fintrack-khata-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web dashboard for FinTrack Khata",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=18" }
+}
