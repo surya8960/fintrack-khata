@@ -1,0 +1,61 @@
+name: Deploy web
+
+# Deploys web/ to Firebase Hosting after CI-relevant files change on main.
+# Conditions (all must hold, otherwise the job is skipped, never failed):
+#   * push to main touching web/** or firebase.json (or a manual run)
+#   * web tests pass
+#   * repository variable FIREBASE_PROJECT_ID and secret FIREBASE_SERVICE_ACCOUNT are set
+# Render users: Render auto-deploys from Git by itself - this workflow is simply skipped.
+on:
+  push:
+    branches: ["main"]
+    paths: ["web/**", "firebase.json"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      HAS_FIREBASE_SECRET: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    steps:
+      - name: Check deploy configuration
+        id: cfg
+        run: |
+          if [ -n "$FIREBASE_PROJECT_ID" ] && [ "$HAS_FIREBASE_SECRET" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Firebase deploy skipped (set repo variable FIREBASE_PROJECT_ID and secret FIREBASE_SERVICE_ACCOUNT to enable)"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.enabled == 'true'
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        if: steps.cfg.outputs.enabled == 'true'
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          channelId: live
