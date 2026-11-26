@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">FinTrack Khata</string>
+    <string name="tagline">Smart Lending &amp; Simple Interest Ledger</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_customers">Khata Loans</string>
+    <string name="nav_calculator">Interest Calc</string>
+    <string name="nav_sync">Cloud Sync</string>
+    <string name="add_customer">New Loan</string>
+    <string name="calculate_interest">Calculate Interest</string>
+    <string name="record_interest_payment">Pay Interest</string>
+    <string name="repay_principal">Repay Principal</string>
+    <string name="principal_amount">Principal (₹)</string>
+    <string name="monthly_rate">Monthly Rate (%)</string>
+    <string name="loan_start_date">Start Date</string>
+    <string name="end_date">End Date</string>
+</resources>

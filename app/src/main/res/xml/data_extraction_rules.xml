@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: cloud backup and device-to-device transfer include only the ledger files. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="ledger" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="ledger" />
+    </device-transfer>
+</data-extraction-rules>
