@@ -59,13 +59,15 @@ npm test
 
 ### Cloud sync (optional)
 
-1. Create a Supabase project and run `supabase/migrations/0001_initial_schema.sql` in the SQL editor.
-2. In the app: *More -> Cloud Sync*, enter the project URL and **anon (public) key**, then sign in or register.
+1. Create a Supabase project and run `supabase/migrations/0001_initial_schema.sql` and then `0002_sync_ids_tombstones.sql` in the SQL editor (**0002 is required** - it adds `updated_at` and the `sync_tombstones` table).
+2. In the app: *More -> Cloud Sync*, then just sign in or register (the Supabase URL + public key are built in: `SUPABASE_URL` / `SUPABASE_ANON_KEY` in `app/build.gradle.kts`, web: `web/config.js`; every user only sees their own data via RLS).
 3. Tap **Sync All Data Now**.
 
 Automatic sync: while signed in, the app uploads changes ~5 seconds after you stop editing, but only if the ledger actually changed and no sync is running. Failures are silent; *Sync All Data Now* still shows errors.
 
-Sync order: replay local deletions, upload every local row, download rows that only exist in the cloud.
+Accounts: local data belongs to one cloud account. Signing out syncs once and then clears the local ledger from the device (kept if that sync fails); a different account signing in never inherits the previous ledger.
+
+Sync order: 1) pull rows + deletion tombstones, 2) merge by id (newest `updatedAt` wins, tombstoned ids are removed and never come back), 3) push new tombstones, then only rows that are new/newer than the cloud copy. Every record has a client-generated UUID `id`, so the same record cannot be created twice.
 On a conflict the local row wins. Never use the `service_role` key in the app.
 
 ### Release builds
@@ -105,8 +107,8 @@ Release: bump `versionName`/`versionCode`, commit, then `git tag v1.0.1 && git p
 ## Known limitations / roadmap
 
 * Money is stored as `Double` and rounded to 2 decimals (HALF_UP); migrate to `BigDecimal`/paise for very large ledgers.
-* Sync is "local wins", without per-row timestamps; two devices editing the same row offline will not merge field by field.
-* Web sync uses the same "local wins" rule as Android; rows the server rejects (e.g. a budget with limit 0) are skipped and counted in the sync message instead of blocking everything.
+* Sync is row-level "newest edit wins" (`updatedAt`); two devices editing the *same row* offline keep the newer row, not a field-by-field merge. Derived totals (account balance, customer paid/accrued totals) live on the row, so concurrent offline payments on two devices to the same customer/account can overwrite each other's total.
+* Web sync uses the same rules as Android; rows the server rejects (e.g. a budget with limit 0) are skipped and counted in the sync message instead of blocking everything.
 * Signing in on a new phone requires entering the password once (the encrypted token never leaves the device or backups).
 * UI strings are inline (English/Hinglish mix); move to `strings.xml` for localisation.
 * `applicationId` is still `com.aistudio.fintrack.khatas`; choose your final id before the first Play Store upload.
